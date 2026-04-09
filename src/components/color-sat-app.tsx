@@ -11,7 +11,19 @@ import {
 
 const STORAGE_KEY = "colorsat:palettes:v1";
 const DEFAULT_CURRENT_BACKGROUND = "#ffffff";
-const DEFAULT_BACKGROUND_COLORS = ["#ffffff", "#f3f4f6", "#f6f9ff"] as const;
+const DEFAULT_BACKGROUND_COLORS = [
+  "#ffffff",
+  "#f3f4f6",
+  "#e8e9eb",
+  "#fee2dc",
+  "#ffe4c8",
+  "#eef507",
+  "#cfff35",
+  "#bdffa2",
+  "#93fffb",
+  "#dfe9fe",
+  "#fedcff",
+] as const;
 
 interface SavedBackground {
   color: string;
