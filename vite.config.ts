@@ -10,7 +10,10 @@ const config = defineConfig({
   staged: {
     "*": "vp check --fix",
   },
-  lint: { options: { typeAware: true, typeCheck: true } },
+  lint: {
+    ignorePatterns: ["src/components/catalyst/**"],
+    options: { typeAware: true, typeCheck: true },
+  },
   resolve: {
     tsconfigPaths: true,
   },
