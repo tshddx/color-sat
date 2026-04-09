@@ -70,6 +70,15 @@ interface PreviewTextareaProps {
   value: string;
 }
 
+interface TextColorSpecCardProps {
+  result: {
+    actualLc: number;
+    hex: string;
+    oklch: string;
+  };
+  target: (typeof COLOR_TARGETS)[number];
+}
+
 function createSavedBackground(color: string): SavedBackground {
   return {
     color,
@@ -252,6 +261,34 @@ function PreviewButton({
     >
       {children}
     </Button>
+  );
+}
+
+function TextColorSpecCardLedger({ result, target }: TextColorSpecCardProps) {
+  return (
+    <section className="rounded-xl border border-gray-950/10 bg-white px-3 py-2.5">
+      <div className="flex items-center gap-3">
+        <div
+          aria-hidden="true"
+          className="size-7 shrink-0 rounded-md border border-black/10"
+          style={{ backgroundColor: result.hex }}
+        />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-baseline justify-between gap-3">
+            <Subheading className="truncate text-sm/5">{target.key}</Subheading>
+            <Text className="text-sm/5 font-medium tabular-nums text-gray-950">
+              LC{target.targetLc} ({formatRoundedLc(result.actualLc)})
+            </Text>
+          </div>
+          <Text className="truncate text-sm/5 text-gray-600">{target.role}</Text>
+        </div>
+      </div>
+
+      <div className="mt-3 grid gap-1 border-t border-gray-950/10 pt-2 text-sm/5">
+        <Code className="w-fit max-w-full truncate tabular-nums text-sm">{result.hex}</Code>
+        <Code className="block max-w-full truncate text-sm">{result.oklch}</Code>
+      </div>
+    </section>
   );
 }
 
@@ -815,46 +852,16 @@ export function ColorSatApp() {
 
                     <Divider />
 
-                    <div className="grid gap-3 p-4">
+                    <div className="grid gap-2 p-3 sm:p-4">
                       {COLOR_TARGETS.map((target) => {
                         const result = palette.samples[target.key];
 
                         return (
-                          <section
-                            className="rounded-2xl border border-gray-950/10 p-4"
+                          <TextColorSpecCardLedger
                             key={target.key}
-                          >
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="space-y-1">
-                                <Subheading className="text-base">{target.key}</Subheading>
-                                <Text className="text-sm text-gray-600">{target.role}</Text>
-                              </div>
-                              <div
-                                aria-hidden="true"
-                                className="size-10 rounded-xl border border-black/10"
-                                style={{ backgroundColor: result.hex }}
-                              />
-                            </div>
-
-                            <Divider className="my-3" soft />
-
-                            <div className="grid gap-2">
-                              <div className="flex items-center justify-between gap-4">
-                                <Text className="text-sm text-gray-600">Target LC</Text>
-                                <Text className="text-sm font-medium tabular-nums text-gray-950">
-                                  {target.targetLc} ({formatRoundedLc(result.actualLc)})
-                                </Text>
-                              </div>
-                              <div className="flex items-center justify-between gap-4">
-                                <Text className="text-sm text-gray-600">Hex</Text>
-                                <Code className="tabular-nums">{result.hex}</Code>
-                              </div>
-                              <div className="flex items-start justify-between gap-4">
-                                <Text className="text-sm text-gray-600">OKLCH</Text>
-                                <Code className="max-w-[18rem] text-right">{result.oklch}</Code>
-                              </div>
-                            </div>
-                          </section>
+                            result={result}
+                            target={target}
+                          />
                         );
                       })}
                     </div>
