@@ -34,7 +34,7 @@ export function Code({ className, ...props }: React.ComponentPropsWithoutRef<"co
     <code
       {...props}
       className={clsx(
-        "rounded-sm border border-gray-950/10 bg-gray-950/2.5 px-0.5 text-sm font-medium text-gray-950 sm:text-[0.8125rem] dark:border-white/20 dark:bg-white/5 dark:text-white",
+        "text-sm font-medium text-gray-950 sm:text-[0.8125rem] dark:text-white",
         className,
       )}
     />

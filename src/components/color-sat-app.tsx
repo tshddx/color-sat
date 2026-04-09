@@ -165,7 +165,7 @@ function buildPreviewButtonStyle(backgroundColor: string, textColor: string): CS
     "--btn-bg": backgroundColor,
     "--btn-border": backgroundColor,
     "--btn-hover-overlay": "rgb(255 255 255 / 0.12)",
-    "--preview-button-text": textColor,
+    color: textColor,
   } as CSSProperties;
 }
 
@@ -254,11 +254,7 @@ function PreviewButton({
   textColor: string;
 }) {
   return (
-    <Button
-      className="text-[var(--preview-button-text)]"
-      style={buildPreviewButtonStyle(backgroundColor, textColor)}
-      type="button"
-    >
+    <Button style={buildPreviewButtonStyle(backgroundColor, textColor)} type="button">
       {children}
     </Button>
   );
@@ -270,21 +266,21 @@ function TextColorSpecCardLedger({ result, target }: TextColorSpecCardProps) {
       <div className="flex items-center gap-3">
         <div
           aria-hidden="true"
-          className="size-7 shrink-0 rounded-md border border-black/10"
+          className="size-8 shrink-0 rounded-md border border-black/10"
           style={{ backgroundColor: result.hex }}
         />
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-1 grid gap-2">
           <div className="flex items-baseline justify-between gap-3">
-            <Subheading className="truncate text-sm/5">{target.key}</Subheading>
+            <Subheading className="text-sm/5">{target.key}</Subheading>
             <Text className="text-sm/5 font-medium tabular-nums text-gray-950">
               LC{target.targetLc} ({formatRoundedLc(result.actualLc)})
             </Text>
           </div>
-          <Text className="truncate text-sm/5 text-gray-600">{target.role}</Text>
+          <Text className="text-sm/5 text-gray-600">{target.role}</Text>
         </div>
       </div>
 
-      <div className="mt-3 grid gap-1 border-t border-gray-950/10 pt-2 text-sm/5">
+      <div className="mt-3 grid gap-2 border-t border-gray-950/10 pt-2 text-sm/5">
         <Code className="w-fit max-w-full truncate tabular-nums text-sm">{result.hex}</Code>
         <Code className="block max-w-full truncate text-sm">{result.oklch}</Code>
       </div>
@@ -620,7 +616,7 @@ export function ColorSatApp() {
 
                       <div className="rounded-3xl border p-4" style={previewBorderStyle}>
                         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                          <div className="space-y-2">
+                          <div className="space-y-3">
                             <Text
                               className="font-mono text-sm uppercase tracking-[0.16em]"
                               style={{ color: secondaryText.hex }}
