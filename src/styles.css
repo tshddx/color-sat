@@ -1,17 +1,17 @@
 @import "tailwindcss";
 
 @theme inline {
-  --color-gray-50: var(--color-stone-50);
-  --color-gray-100: var(--color-stone-100);
-  --color-gray-200: var(--color-stone-200);
-  --color-gray-300: var(--color-stone-300);
-  --color-gray-400: var(--color-stone-400);
-  --color-gray-500: var(--color-stone-500);
-  --color-gray-600: var(--color-stone-600);
-  --color-gray-700: var(--color-stone-700);
-  --color-gray-800: var(--color-stone-800);
-  --color-gray-900: var(--color-stone-900);
-  --color-gray-950: var(--color-stone-950);
+  --color-gray-50: var(--color-taupe-50);
+  --color-gray-100: var(--color-taupe-100);
+  --color-gray-200: var(--color-taupe-200);
+  --color-gray-300: var(--color-taupe-300);
+  --color-gray-400: var(--color-taupe-400);
+  --color-gray-500: var(--color-taupe-500);
+  --color-gray-600: var(--color-taupe-600);
+  --color-gray-700: var(--color-taupe-700);
+  --color-gray-800: var(--color-taupe-800);
+  --color-gray-900: var(--color-taupe-900);
+  --color-gray-950: var(--color-taupe-950);
 }
 
 code {

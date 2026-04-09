@@ -13,7 +13,7 @@ importers:
   .:
     dependencies:
       '@tailwindcss/vite':
-        specifier: ^4.1.18
+        specifier: ^4.2.2
         version: 4.2.2(@voidzero-dev/vite-plus-core@0.1.16(@types/node@22.19.17)(jiti@2.6.1)(tsx@4.21.0)(typescript@5.9.3))
       '@tanstack/react-router':
         specifier: latest
@@ -43,7 +43,7 @@ importers:
         specifier: ^19.2.0
         version: 19.2.5(react@19.2.5)
       tailwindcss:
-        specifier: ^4.1.18
+        specifier: ^4.2.2
         version: 4.2.2
     devDependencies:
       '@testing-library/dom':
