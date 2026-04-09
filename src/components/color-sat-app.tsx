@@ -114,7 +114,7 @@ function LoadingSpinner() {
   return (
     <span
       aria-label="Updating previews"
-      className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-neutral-400/40 border-t-neutral-700 align-middle"
+      className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-gray-400/40 border-t-gray-700 align-middle"
       role="status"
     />
   );
@@ -254,14 +254,14 @@ export function ColorSatApp() {
   };
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-7xl flex-col gap-6 px-4 py-8 text-neutral-950">
-      <section className="space-y-3 rounded-2xl border border-neutral-200 bg-white p-6">
+    <main className="mx-auto flex min-h-screen w-full max-w-7xl flex-col gap-6 px-4 py-8 text-gray-950">
+      <section className="space-y-3 rounded-2xl border border-gray-200 bg-white p-6">
         <div className="space-y-2">
-          <p className="text-sm font-medium text-neutral-700">ColorSAT</p>
+          <p className="text-sm font-medium text-gray-700">ColorSAT</p>
           <h1 className="text-3xl font-semibold tracking-tight">
             APCA-driven color palette explorer
           </h1>
-          <p className="max-w-3xl text-sm text-neutral-600">
+          <p className="max-w-3xl text-sm text-gray-600">
             Start from a background color, then generate semantic foreground and surface colors by
             searching OKLCH lightness and reducing chroma when needed to reach each APCA target.
           </p>
@@ -270,21 +270,21 @@ export function ColorSatApp() {
         <div className="flex flex-wrap items-center gap-3">
           <input
             aria-label="Choose background color"
-            className="h-12 w-16 cursor-pointer rounded border border-neutral-300 bg-transparent p-1"
+            className="h-12 w-16 cursor-pointer rounded border border-gray-300 bg-transparent p-1"
             onChange={(event) => setCurrentBackground(event.target.value)}
             type="color"
             value={currentBackground}
           />
           <code>{currentBackground}</code>
           <button
-            className="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium"
+            className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium"
             onClick={addBackground}
             type="button"
           >
             Add background
           </button>
           <button
-            className="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium disabled:opacity-50"
+            className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium disabled:opacity-50"
             disabled={backgrounds.length === 0}
             onClick={() => setBackgrounds([])}
             type="button"
@@ -292,7 +292,7 @@ export function ColorSatApp() {
             Clear saved
           </button>
           <button
-            className="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium"
+            className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium"
             onClick={resetBackgrounds}
             type="button"
           >
@@ -302,7 +302,7 @@ export function ColorSatApp() {
       </section>
 
       {backgrounds.length === 0 ? (
-        <section className="rounded-2xl border border-dashed border-neutral-300 bg-white p-8 text-center text-sm text-neutral-600">
+        <section className="rounded-2xl border border-dashed border-gray-300 bg-white p-8 text-center text-sm text-gray-600">
           Add a background color to generate the ColorSAT preview set.
         </section>
       ) : null}
@@ -323,15 +323,15 @@ export function ColorSatApp() {
 
           return (
             <section
-              className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm"
+              className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm"
               key={background.id}
             >
-              <div className="mb-4 flex flex-col gap-3 border-b border-neutral-200 pb-4 lg:flex-row lg:items-center lg:justify-between">
+              <div className="mb-4 flex flex-col gap-3 border-b border-gray-200 pb-4 lg:flex-row lg:items-center lg:justify-between">
                 <div className="flex items-center gap-3">
                   <div className="relative">
                     <button
                       aria-expanded={editingBackgroundId === background.id}
-                      className="h-12 w-12 rounded-lg border border-neutral-300"
+                      className="h-12 w-12 rounded-lg border border-gray-300"
                       onClick={() =>
                         setEditingBackgroundId((current) =>
                           current === background.id ? null : background.id,
@@ -341,10 +341,10 @@ export function ColorSatApp() {
                       type="button"
                     />
                     {editingBackgroundId === background.id ? (
-                      <div className="absolute left-0 top-14 z-10 rounded-lg border border-neutral-200 bg-white p-2 shadow-lg">
+                      <div className="absolute left-0 top-14 z-10 rounded-lg border border-gray-200 bg-white p-2 shadow-lg">
                         <input
                           aria-label={`Edit ${liveBackground.color} background color`}
-                          className="h-12 w-16 cursor-pointer rounded border border-neutral-300 bg-transparent p-1"
+                          className="h-12 w-16 cursor-pointer rounded border border-gray-300 bg-transparent p-1"
                           onChange={(event) => updateBackground(background.id, event.target.value)}
                           type="color"
                           value={liveBackground.color}
@@ -364,7 +364,7 @@ export function ColorSatApp() {
                 </div>
 
                 <button
-                  className="w-fit rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium"
+                  className="w-fit rounded-md border border-gray-300 px-3 py-2 text-sm font-medium"
                   onClick={() => removeBackground(background.id)}
                   type="button"
                 >
@@ -373,7 +373,7 @@ export function ColorSatApp() {
               </div>
 
               <div className="grid gap-4 xl:grid-cols-[3fr_1fr]">
-                <article className="overflow-hidden rounded-xl border border-neutral-200">
+                <article className="overflow-hidden rounded-xl border border-gray-200">
                   <div className="space-y-6 p-6" style={{ backgroundColor: palette.backgroundHex }}>
                     <div className="space-y-6">
                       <div className="space-y-3">
@@ -648,7 +648,7 @@ export function ColorSatApp() {
                     </div>
                   </div>
 
-                  <div className="grid gap-2 border-t border-neutral-200 bg-white p-4 text-sm text-neutral-600">
+                  <div className="grid gap-2 border-t border-gray-200 bg-white p-4 text-sm text-gray-600">
                     <div className="flex items-center justify-between gap-4">
                       <span>Composite preview</span>
                       <span>Uses divider, secondaryBackground, secondaryText, primaryText</span>
@@ -672,8 +672,8 @@ export function ColorSatApp() {
                   </div>
                 </article>
 
-                <article className="overflow-hidden rounded-xl border border-neutral-200 bg-white">
-                  <div className="border-b border-neutral-200 p-4">
+                <article className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+                  <div className="border-b border-gray-200 p-4">
                     <h3 className="text-sm font-semibold">Text Color Specs</h3>
                   </div>
 
@@ -682,11 +682,11 @@ export function ColorSatApp() {
                       const result = palette.samples[target.key];
 
                       return (
-                        <div className="rounded-xl border border-neutral-200 p-4" key={target.key}>
+                        <div className="rounded-xl border border-gray-200 p-4" key={target.key}>
                           <div className="mb-3 flex items-start justify-between gap-3">
                             <div>
                               <p className="text-sm font-semibold">{target.key}</p>
-                              <p className="text-xs text-neutral-600">{target.role}</p>
+                              <p className="text-xs text-gray-600">{target.role}</p>
                             </div>
                             <div
                               aria-hidden="true"
@@ -695,7 +695,7 @@ export function ColorSatApp() {
                             />
                           </div>
 
-                          <div className="grid gap-2 text-sm text-neutral-600">
+                          <div className="grid gap-2 text-sm text-gray-600">
                             <div className="flex items-center justify-between gap-4">
                               <span>LC</span>
                               <span>
