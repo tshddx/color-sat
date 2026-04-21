@@ -1,9 +1,8 @@
 import { formatHex } from "culori";
-import type { OklchAdapter } from "./oklch-adapter";
+import type { OklchAdapter, OklchResult } from "./oklch-adapter";
 
 /**
  * Lightweight sRGB gamut check using the OKLab → LMS → linear-sRGB matrix.
- * Returns null if any linear-sRGB channel falls outside [0, 1] + tolerance.
  * Avoids importing culori's full converter chain.
  */
 function checkGamut(l: number, c: number, h: number): boolean {
@@ -31,8 +30,10 @@ function checkGamut(l: number, c: number, h: number): boolean {
 
 export const culoriAdapter: OklchAdapter = {
   label: "culori",
-  oklchToHex(l, c, h) {
-    if (!checkGamut(l, c, h)) return null;
-    return formatHex({ mode: "oklch", l, c, h } as Parameters<typeof formatHex>[0]) ?? null;
+  oklchToHex(l, c, h): OklchResult {
+    const inGamut = checkGamut(l, c, h);
+    const hex =
+      formatHex({ mode: "oklch", l, c, h } as Parameters<typeof formatHex>[0]) ?? "#000000";
+    return { hex, inGamut };
   },
 };

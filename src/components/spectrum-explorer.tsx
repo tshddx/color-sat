@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useEffect, useMemo, useState } from "react";
-import { ADAPTER_KEYS, ADAPTERS, type AdapterKey } from "../lib/oklch-adapter";
+import { ADAPTER_KEYS, ADAPTERS, type AdapterKey, type OklchResult } from "../lib/oklch-adapter";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -27,8 +27,7 @@ function linspace(min: number, max: number, count: number): number[] {
  * Determine whether a box-shadow ring should be white or black based on the
  * background color's relative luminance.
  */
-function ringColor(hex: string | null): string {
-  if (!hex) return "white";
+function ringColor(hex: string): string {
   // Quick luminance estimate from the hex
   const r = parseInt(hex.slice(1, 3), 16) / 255;
   const g = parseInt(hex.slice(3, 5), 16) / 255;
@@ -76,8 +75,8 @@ interface ChartProps {
   yLabel: string;
   xValues: number[];
   yValues: number[];
-  /** Build the OKLCH color for a given (xVal, yVal) cell. */
-  cellColor: (xVal: number, yVal: number) => string | null;
+  /** Build the OKLCH color result for a given (xVal, yVal) cell. */
+  cellColor: (xVal: number, yVal: number) => OklchResult;
   /** Return true if this cell is the currently selected one. */
   isSelected: (xVal: number, yVal: number) => boolean;
   /** Called when a cell is hovered while the primary mouse button is held. */
@@ -106,7 +105,7 @@ function Chart({
       xValues.map((xVal) => ({
         xVal,
         yVal,
-        hex: cellColor(xVal, yVal),
+        result: cellColor(xVal, yVal),
       })),
     );
   }, [xValues, yValues, cellColor]);
@@ -135,9 +134,9 @@ function Chart({
         <div className="flex flex-col" style={{ gap: "1px", userSelect: "none" }}>
           {rows.map((row, rowIdx) => (
             <div key={rowIdx} className="flex" style={{ gap: "1px" }}>
-              {row.map(({ xVal, yVal, hex }) => {
+              {row.map(({ xVal, yVal, result }) => {
                 const selected = isSelected(xVal, yVal);
-                const ring = ringColor(hex);
+                const ring = ringColor(result.hex);
                 const oppositeRing = ring === "white" ? "black" : "white";
 
                 return (
@@ -154,8 +153,10 @@ function Chart({
                       width: cellSize,
                       height: cellSize,
                       flexShrink: 0,
-                      backgroundColor: hex ?? "transparent",
-                      visibility: hex ? "visible" : "hidden",
+                      backgroundColor: result.inGamut ? result.hex : undefined,
+                      display: result.inGamut ? undefined : "flex",
+                      alignItems: result.inGamut ? undefined : "center",
+                      justifyContent: result.inGamut ? undefined : "center",
                       boxShadow: selected
                         ? `0 0 0 1.5px ${ring}, 0 0 0 3px ${oppositeRing}`
                         : undefined,
@@ -163,7 +164,18 @@ function Chart({
                       position: "relative",
                       zIndex: selected ? 1 : undefined,
                     }}
-                  />
+                  >
+                    {!result.inGamut && (
+                      <div
+                        style={{
+                          width: cellSize / 2,
+                          height: cellSize / 2,
+                          backgroundColor: result.hex,
+                          flexShrink: 0,
+                        }}
+                      />
+                    )}
+                  </div>
                 );
               })}
             </div>
@@ -250,7 +262,7 @@ export function SpectrumExplorer() {
 
   // Current color hex for the swatch
   const currentHex = useMemo(
-    () => adapter.oklchToHex(color.l, color.c, color.h) ?? "#888888",
+    () => adapter.oklchToHex(color.l, color.c, color.h).hex,
     [adapter, color],
   );
 
