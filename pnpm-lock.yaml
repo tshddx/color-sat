@@ -12,6 +12,9 @@ importers:
 
   .:
     dependencies:
+      '@colordx/core':
+        specifier: ^5.2.0
+        version: 5.2.0
       '@headlessui/react':
         specifier: ^2.2.10
         version: 2.2.10(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
@@ -207,6 +210,9 @@ packages:
   '@bramus/specificity@2.4.2':
     resolution: {integrity: sha512-ctxtJ/eA+t+6q2++vj5j7FYX3nRu311q1wfYH3xjlLOsczhlhxAg2FWNUXhpGvAw3BWo1xBcvOV6/YLc2r5FJw==}
     hasBin: true
+
+  '@colordx/core@5.2.0':
+    resolution: {integrity: sha512-wifnqsGCXRh+lJdX4975nKEPJaSk7k8rMiA/VeGrS4tOTn06WZrow6cUA7wFJKPXfcqj0rXeH4BMgGoKZvBf7g==}
 
   '@csstools/color-helpers@6.0.2':
     resolution: {integrity: sha512-LMGQLS9EuADloEFkcTBR3BwV/CGHV7zyDxVRtVDTwdI2Ca4it0CCVTT9wCkxSgokjE5Ho41hEPgb8OEUwoXr6Q==}
@@ -2437,6 +2443,8 @@ snapshots:
   '@bramus/specificity@2.4.2':
     dependencies:
       css-tree: 3.2.1
+
+  '@colordx/core@5.2.0': {}
 
   '@csstools/color-helpers@6.0.2': {}
 

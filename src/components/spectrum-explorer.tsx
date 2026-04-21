@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useEffect, useMemo, useState } from "react";
-import { formatHex } from "culori";
+import { ADAPTER_KEYS, ADAPTERS, type AdapterKey } from "../lib/oklch-adapter";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -21,66 +21,6 @@ interface OklchColor {
 function linspace(min: number, max: number, count: number): number[] {
   if (count <= 1) return [min];
   return Array.from({ length: count }, (_, i) => min + (i / (count - 1)) * (max - min));
-}
-
-/** Convert an OKLCH triplet to a hex string, or null if out-of-gamut. */
-function oklchToHex(l: number, c: number, h: number): string | null {
-  // culori's formatHex clamps to sRGB — we detect out-of-gamut by checking
-  // whether the round-tripped value differs meaningfully from the input.
-  const hex = formatHex({ mode: "oklch", l, c, h } as Parameters<typeof formatHex>[0]);
-  if (!hex) return null;
-
-  // Detect out-of-gamut: parse the hex back via culori and compare.
-  // A simpler proxy: if chroma > 0 and the hex collapses to a gray, it's clamped.
-  // We instead use the built-in gamut check via the rgb values being in [0,1].
-  const { formatRgb } = { formatRgb: null } as { formatRgb: null }; // unused — kept for clarity
-  void formatRgb; // suppress lint
-
-  // Use a direct sRGB gamut check: convert oklch → linear-sRGB and see if any
-  // channel is outside [0, 1] before clamping.
-  const r = oklchToLinearR(l, c, h);
-  if (r === null) return null;
-
-  return hex;
-}
-
-/**
- * Returns null if the color is out of sRGB gamut, otherwise returns a dummy
- * truthy value. This is a lightweight gamut check using the OKLab → linear
- * sRGB matrix, avoiding a full culori converter import.
- */
-function oklchToLinearR(l: number, c: number, h: number): 0 | null {
-  const hRad = (h * Math.PI) / 180;
-  const a = c * Math.cos(hRad);
-  const b = c * Math.sin(hRad);
-
-  // OKLab → LMS (cube)
-  const lms_l = l + 0.3963377774 * a + 0.2158037573 * b;
-  const lms_m = l - 0.1055613458 * a - 0.0638541728 * b;
-  const lms_s = l - 0.0894841775 * a - 1.291485548 * b;
-
-  const lL = lms_l ** 3;
-  const lM = lms_m ** 3;
-  const lS = lms_s ** 3;
-
-  // LMS → linear sRGB
-  const linR = +4.0767416621 * lL - 3.3077115913 * lM + 0.2309699292 * lS;
-  const linG = -1.2684380046 * lL + 2.6097574011 * lM - 0.3413193965 * lS;
-  const linB = -0.0041960863 * lL - 0.7034186147 * lM + 1.707614701 * lS;
-
-  const TOLERANCE = 0.02; // small tolerance for near-boundary colors
-  if (
-    linR < -TOLERANCE ||
-    linR > 1 + TOLERANCE ||
-    linG < -TOLERANCE ||
-    linG > 1 + TOLERANCE ||
-    linB < -TOLERANCE ||
-    linB > 1 + TOLERANCE
-  ) {
-    return null;
-  }
-
-  return 0;
 }
 
 /**
@@ -246,6 +186,10 @@ function Chart({
 // ---------------------------------------------------------------------------
 
 export function SpectrumExplorer() {
+  // Color library adapter
+  const [adapterKey, setAdapterKey] = useState<AdapterKey>("culori");
+  const adapter = ADAPTERS[adapterKey];
+
   // Resolution state
   const [lSteps, setLSteps] = useState(50);
   const [cSteps, setCSteps] = useState(25);
@@ -305,24 +249,27 @@ export function SpectrumExplorer() {
   );
 
   // Current color hex for the swatch
-  const currentHex = useMemo(() => oklchToHex(color.l, color.c, color.h) ?? "#888888", [color]);
+  const currentHex = useMemo(
+    () => adapter.oklchToHex(color.l, color.c, color.h) ?? "#888888",
+    [adapter, color],
+  );
 
   // Chart 1: Chroma (Y) × Lightness (X) — fixed Hue
   const cl_cellColor = useMemo(
-    () => (xVal: number, yVal: number) => oklchToHex(xVal, yVal, color.h),
-    [color.h],
+    () => (xVal: number, yVal: number) => adapter.oklchToHex(xVal, yVal, color.h),
+    [adapter, color.h],
   );
 
   // Chart 2: Chroma (Y) × Hue (X) — fixed Lightness
   const ch_cellColor = useMemo(
-    () => (xVal: number, yVal: number) => oklchToHex(color.l, yVal, xVal),
-    [color.l],
+    () => (xVal: number, yVal: number) => adapter.oklchToHex(color.l, yVal, xVal),
+    [adapter, color.l],
   );
 
   // Chart 3: Lightness (Y) × Hue (X) — fixed Chroma
   const lh_cellColor = useMemo(
-    () => (xVal: number, yVal: number) => oklchToHex(yVal, color.c, xVal),
-    [color.c],
+    () => (xVal: number, yVal: number) => adapter.oklchToHex(yVal, color.c, xVal),
+    [adapter, color.c],
   );
 
   return (
@@ -369,6 +316,28 @@ export function SpectrumExplorer() {
             value={cellSize}
             onChange={setCellSize}
           />
+
+          {/* Color library selector */}
+          <div className="flex flex-col gap-1">
+            <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+              Color library
+            </span>
+            <div className="flex items-center gap-3">
+              {ADAPTER_KEYS.map((key) => (
+                <label key={key} className="flex items-center gap-1.5 cursor-pointer">
+                  <input
+                    checked={adapterKey === key}
+                    className="accent-gray-700"
+                    name="adapter"
+                    onChange={() => setAdapterKey(key)}
+                    type="radio"
+                    value={key}
+                  />
+                  <span className="text-sm text-gray-700 font-mono">{ADAPTERS[key].label}</span>
+                </label>
+              ))}
+            </div>
+          </div>
 
           {/* Current color swatch */}
           <div className="ml-auto flex flex-col gap-1">

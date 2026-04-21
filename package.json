@@ -13,6 +13,7 @@
     "prepare": "vp config"
   },
   "dependencies": {
+    "@colordx/core": "^5.2.0",
     "@headlessui/react": "^2.2.10",
     "@tailwindcss/vite": "^4.2.2",
     "@tanstack/react-router": "latest",
