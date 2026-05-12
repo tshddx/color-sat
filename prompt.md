@@ -7,8 +7,9 @@ This tool will have two main modules: the Solver and the Frontend. This document
 Solver is a purely functional module where all inputs and outputs are plain serializable JavaScript objects. Inputs to functions are validated with Zod schemas. The main function is `solveGraph`. Here are the basic types involved:
 
 ```ts
-function solveGraph(graph: Graph): SolvedGraph;
-function solveGraphIncr(solvedGraph: SolvedGraph, graphChanges: GraphChanges): SolvedGraph;
+// `Result` comes from the better-result library; the `SolveError` union is defined in the Solver implementation details below.
+function solveGraph(graph: Graph): Result<SolvedGraph, SolveError>;
+function solveGraphIncr(solvedGraph: SolvedGraph, graphChanges: GraphChanges): Result<SolvedGraph, SolveError>;
 
 type Graph = {
   nodes: Node[];
@@ -153,11 +154,11 @@ The 'tolerance' fields refer to percent error, i.e. `const error = (actual, targ
 
 ### Output equivalence
 
-The return value of `solveGraphIncr(prev, changes)` is required to be deeply equal to the return value of `solveGraph(applyChanges(prev.graph, changes))` — i.e. running `solveGraph` from scratch on the post-change graph. Removed nodes and edges disappear from the result entirely; they are not retained with `solvedColor: undefined`. Calling `solveGraphIncr` with an empty changes list returns `prev` unchanged.
+The result of `solveGraphIncr(prev, changes)` is required to be deeply equal to the result of `solveGraph(applyChanges(prev.graph, changes))` (running `solveGraph` from scratch on the post-change graph). Equality holds for both `Ok` and `Err` cases. Removed nodes and edges disappear from the result entirely; they are not retained with `solvedColor: undefined`. Calling `solveGraphIncr` with an empty changes list returns `Result.ok(prev)`.
 
 ### Validation
 
-`solveGraphIncr` validates the result of applying `changes` to `prev.graph` and throws on any of the following:
+`solveGraphIncr` validates the result of applying `changes` to `prev.graph` and returns an `Err` result for any of the following:
 
 - A cycle is introduced.
 - An edge references a node that does not exist after applying the changes (dangling edge). The caller is expected to include explicit `remove-edge` entries for every edge attached to a node it removes.
@@ -178,6 +179,50 @@ The intended approach:
 5. Topologically order the affected nodes (sources before targets) and re-solve each one locally, reading already-solved source colors from the carried-over solutions.
 6. Build the new `SolvedGraph` with the post-change `Graph` plus the merged solution set.
 
+## Implementation details
+
+The solver uses [better-result](https://better-result.dev) for error handling. Both `solveGraph` and `solveGraphIncr` return `Result<SolvedGraph, SolveError>` instead of throwing. Callers pattern-match on the result (e.g. with `Result.isOk` or `matchError`) and handle the `Err` branch explicitly.
+
+`SolveError` is a tagged union built with better-result's `TaggedError` factory:
+
+```ts
+import { TaggedError, type Result } from "better-result";
+import type { ZodIssue } from "zod";
+
+class CycleError extends TaggedError("CycleError")<{ cycleNodeIds: string[] }>() {}
+class DanglingEdgeError extends TaggedError("DanglingEdgeError")<{
+  edgeId: string;
+  missingNodeId: string;
+  role: "source" | "target";
+}>() {}
+class DuplicateIdError extends TaggedError("DuplicateIdError")<{
+  kind: "node" | "edge";
+  id: string;
+}>() {}
+class UnknownIdError extends TaggedError("UnknownIdError")<{
+  kind: "node" | "edge";
+  id: string;
+}>() {}
+class ImmutableFieldError extends TaggedError("ImmutableFieldError")<{
+  kind: "node" | "edge";
+  id: string;
+  field: "id" | "sourceNodeId" | "targetNodeId";
+}>() {}
+class SchemaValidationError extends TaggedError("SchemaValidationError")<{
+  issues: ZodIssue[];
+}>() {}
+
+type SolveError =
+  | CycleError
+  | DanglingEdgeError
+  | DuplicateIdError
+  | UnknownIdError
+  | ImmutableFieldError
+  | SchemaValidationError;
+```
+
+Zod schema-validation failures (from validating `Graph`, `GraphChange`, or `Constraint` inputs) become `SchemaValidationError` instances. Internally, the validation step composes Result-returning helpers with `Result.gen` so the first failure short-circuits and is surfaced as the function's `Err`. Successful solves return `Result.ok(solvedGraph)`.
+
 # Frontend module
 
 ## Tree Layout
@@ -195,6 +240,17 @@ Clicking on a node will select it, and a right sidebar will display the details 
 - If a solved color value exists, a "solved color" section showing the current solved color value for the token along with all the constraints that led to that solution and their respective errors
 - A list of the node's incoming edges (each with a Delete button) in a section called Source Tokens. The "source tokens" of the selected node are the tokens that flow into it (the source endpoints of its incoming edges).
 - Beneath each of the incoming edges, a list of constraints for that edge (each with a Delete button and editable fields)
+
+## Implementation details
+
+The frontend lives on a new `/solver` route added via TanStack Router's file-based routing (`src/routes/solver.tsx`, registered with `createFileRoute("/solver")`). All UI components come from the existing Catalyst library under `src/components/catalyst/typescript/` (`Sidebar`, `Button`, `Heading`, `Input`, `Alert`, `Badge`, etc.) and are styled with Tailwind 4, matching the conventions already used on `/` and `/spectrum`.
+
+When the route or any UI handler calls into the solver module, it receives `Result<SolvedGraph, SolveError>` and handles both branches explicitly:
+
+- On `Ok`, the solved colors are stored in component state and rendered into the Token Outline and Token Sidebar.
+- On `Err`, the error is surfaced inline in the UI using Catalyst's `Alert` component (next to the offending node or edge when the error has a `nodeId` / `edgeId` field, or at the top of the page for graph-wide failures). The frontend uses `matchError` from better-result to exhaustively handle each `SolveError` tag and render an appropriate message.
+
+The frontend never lets solver errors bubble up as exceptions; any unexpected throw should be treated as a bug.
 
 # Example User Story
 
