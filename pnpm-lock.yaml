@@ -36,6 +36,9 @@ importers:
       apca-w3:
         specifier: ^0.1.9
         version: 0.1.9
+      better-result:
+        specifier: ^2.9.2
+        version: 2.9.2
       clsx:
         specifier: ^2.1.1
         version: 2.1.1
@@ -54,6 +57,9 @@ importers:
       tailwindcss:
         specifier: ^4.2.2
         version: 4.2.2
+      zod:
+        specifier: ^4.4.3
+        version: 4.4.3
     devDependencies:
       '@testing-library/dom':
         specifier: ^10.4.1
@@ -1406,6 +1412,9 @@ packages:
     engines: {node: '>=6.0.0'}
     hasBin: true
 
+  better-result@2.9.2:
+    resolution: {integrity: sha512-WIFoBPCdnTOdk9inkE1ZRvCZ4P0CpSkAiLlchC65N7n9DcjZ3NhqkBOlafzpOVnO8ixyi37kicmSJ3ENhPZl7Q==}
+
   bidi-js@1.0.3:
     resolution: {integrity: sha512-RKshQI1R3YQ+n9YJz2QQ147P66ELpa1FQEg20Dk8oW9t2KgLbpDLLp9aGZ7y8WHSshDknG0bknqGw5/tyCs5tw==}
 
@@ -2288,6 +2297,9 @@ packages:
 
   zod@3.25.76:
     resolution: {integrity: sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==}
+
+  zod@4.4.3:
+    resolution: {integrity: sha512-ytENFjIJFl2UwYglde2jchW2Hwm4GJFLDiSXWdTrJQBIN9Fcyp7n4DhxJEiWNAJMV1/BqWfW/kkg71UDcHJyTQ==}
 
 snapshots:
 
@@ -3365,6 +3377,8 @@ snapshots:
 
   baseline-browser-mapping@2.10.16: {}
 
+  better-result@2.9.2: {}
+
   bidi-js@1.0.3:
     dependencies:
       require-from-string: 2.0.2
@@ -4190,3 +4204,5 @@ snapshots:
   yallist@3.1.1: {}
 
   zod@3.25.76: {}
+
+  zod@4.4.3: {}

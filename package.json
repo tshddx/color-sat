@@ -21,12 +21,14 @@
     "@tanstack/react-start": "latest",
     "@tanstack/router-plugin": "^1.132.0",
     "apca-w3": "^0.1.9",
+    "better-result": "^2.9.2",
     "clsx": "^2.1.1",
     "culori": "^4.0.2",
     "nitro": "npm:nitro-nightly@latest",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "tailwindcss": "^4.2.2"
+    "tailwindcss": "^4.2.2",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@testing-library/dom": "^10.4.1",
