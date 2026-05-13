@@ -21,9 +21,11 @@ import {
   applyGraphChange,
   applyGraphChanges,
   exampleGraph,
+  fromSrgbHex,
   solveGraph,
   solveGraphIncr,
   toCssOklch,
+  toSrgbHex,
   validateGraph,
   type Constraint,
   type Edge,
@@ -990,37 +992,62 @@ function OklchFields({
   color: OklchColor;
   onChange: (color: OklchColor) => void;
 }) {
+  const srgbHex = toSrgbHex(color) ?? "#000000";
+
   return (
-    <div className="mt-4 grid gap-3 sm:grid-cols-3">
-      <Field label="L">
-        <Input
-          type="number"
-          min="0"
-          max="1"
-          step="0.05"
-          value={color.l}
-          onChange={(event) => onChange({ ...color, l: numberValue(event.target.value, color.l) })}
+    <div className="mt-4 space-y-3">
+      <Field label="Color">
+        <input
+          aria-label="Fixed color"
+          className="size-12 cursor-pointer rounded-xl border border-gray-950/10 bg-transparent p-1"
+          type="color"
+          value={srgbHex}
+          onChange={(event) => {
+            const nextColor = fromSrgbHex(event.target.value);
+
+            if (nextColor) {
+              onChange(nextColor);
+            }
+          }}
         />
       </Field>
-      <Field label="C">
-        <Input
-          type="number"
-          min="0"
-          step="0.05"
-          value={color.c}
-          onChange={(event) => onChange({ ...color, c: numberValue(event.target.value, color.c) })}
-        />
-      </Field>
-      <Field label="H">
-        <Input
-          type="number"
-          min="0"
-          max="360"
-          step="1"
-          value={color.h}
-          onChange={(event) => onChange({ ...color, h: numberValue(event.target.value, color.h) })}
-        />
-      </Field>
+      <div className="grid gap-3 sm:grid-cols-3">
+        <Field label="L">
+          <Input
+            type="number"
+            min="0"
+            max="1"
+            step="0.05"
+            value={color.l}
+            onChange={(event) =>
+              onChange({ ...color, l: numberValue(event.target.value, color.l) })
+            }
+          />
+        </Field>
+        <Field label="C">
+          <Input
+            type="number"
+            min="0"
+            step="0.05"
+            value={color.c}
+            onChange={(event) =>
+              onChange({ ...color, c: numberValue(event.target.value, color.c) })
+            }
+          />
+        </Field>
+        <Field label="H">
+          <Input
+            type="number"
+            min="0"
+            max="360"
+            step="1"
+            value={color.h}
+            onChange={(event) =>
+              onChange({ ...color, h: numberValue(event.target.value, color.h) })
+            }
+          />
+        </Field>
+      </div>
     </div>
   );
 }

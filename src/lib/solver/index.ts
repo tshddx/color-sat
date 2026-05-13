@@ -23,7 +23,14 @@ export {
   UnknownIdError,
   type SolveError,
 } from "./errors";
-export { apcaLc, isDisplayP3Oklch, normalizeOklch, toCssOklch, toSrgbHex } from "./color-space";
+export {
+  apcaLc,
+  fromSrgbHex,
+  isDisplayP3Oklch,
+  normalizeOklch,
+  toCssOklch,
+  toSrgbHex,
+} from "./color-space";
 export {
   constraintError,
   evaluateEdgeConstraints,

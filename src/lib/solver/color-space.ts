@@ -3,6 +3,7 @@ import { converter, formatHex } from "culori";
 import type { OklchColor } from "./types";
 
 const toRgb = converter("rgb");
+const toOklch = converter("oklch");
 const toP3 = converter("p3");
 
 function normalizeHue(value: number) {
@@ -63,6 +64,16 @@ export function toSrgbHex(color: OklchColor): string | undefined {
 
   const hex = formatHex(rgb);
   return hex ? hex.toLowerCase() : undefined;
+}
+
+export function fromSrgbHex(hex: string): OklchColor | undefined {
+  const oklch = toOklch(hex);
+
+  if (!oklch) {
+    return undefined;
+  }
+
+  return normalizeOklch({ l: oklch.l, c: oklch.c ?? 0, h: oklch.h ?? 0 });
 }
 
 export function hueDistance(a: number, b: number): number {
