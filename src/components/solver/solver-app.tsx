@@ -835,7 +835,7 @@ function ConstraintEditor({
               <Field label="Value">
                 <Input
                   type="number"
-                  step="0.001"
+                  step={stepForConstraintValue(constraint.type)}
                   value={constraint.value}
                   onChange={(event) =>
                     updateConstraint(index, {
@@ -997,7 +997,7 @@ function OklchFields({
           type="number"
           min="0"
           max="1"
-          step="0.001"
+          step="0.05"
           value={color.l}
           onChange={(event) => onChange({ ...color, l: numberValue(event.target.value, color.l) })}
         />
@@ -1006,7 +1006,7 @@ function OklchFields({
         <Input
           type="number"
           min="0"
-          step="0.001"
+          step="0.05"
           value={color.c}
           onChange={(event) => onChange({ ...color, c: numberValue(event.target.value, color.c) })}
         />
@@ -1016,7 +1016,7 @@ function OklchFields({
           type="number"
           min="0"
           max="360"
-          step="0.1"
+          step="1"
           value={color.h}
           onChange={(event) => onChange({ ...color, h: numberValue(event.target.value, color.h) })}
         />
@@ -1052,4 +1052,16 @@ function numberValue(value: string, fallback: number) {
 function changeConstraintType(constraint: Constraint, type: Constraint["type"]): Constraint {
   const defaults = DEFAULT_CONSTRAINTS[type];
   return { ...defaults, value: constraint.value, tolerance: constraint.tolerance } as Constraint;
+}
+
+function stepForConstraintValue(type: Constraint["type"]) {
+  if (type === "contrast") {
+    return 1;
+  }
+
+  if (type.endsWith("hue")) {
+    return 1;
+  }
+
+  return 0.05;
 }

@@ -36,11 +36,8 @@ export function exampleGraph(): Graph {
   const secondaryBackground = node(
     "node-preview-secondary-background",
     "preview-secondary-background",
-    {
-      l: 0.94,
-      c: 0,
-      h: 0,
-    },
+    undefined,
+    background.id,
   );
 
   return {
@@ -49,6 +46,12 @@ export function exampleGraph(): Graph {
       contrastEdge("edge-preview-background-primary-text", background.id, primaryText.id, 90),
       contrastEdge("edge-preview-background-secondary-text", background.id, secondaryText.id, 60),
       contrastEdge("edge-preview-background-divider", background.id, divider.id, 25),
+      contrastEdge(
+        "edge-preview-background-secondary-background",
+        background.id,
+        secondaryBackground.id,
+        10,
+      ),
     ],
   };
 }
