@@ -1,0 +1,937 @@
+"use client";
+
+import { Result } from "better-result";
+import { useEffect, useMemo, useState } from "react";
+import { Badge } from "../catalyst/typescript/badge";
+import { Button } from "../catalyst/typescript/button";
+import {
+  Dialog,
+  DialogActions,
+  DialogBody,
+  DialogDescription,
+  DialogTitle,
+} from "../catalyst/typescript/dialog";
+import { Divider } from "../catalyst/typescript/divider";
+import { Heading, Subheading } from "../catalyst/typescript/heading";
+import { Input } from "../catalyst/typescript/input";
+import { Select } from "../catalyst/typescript/select";
+import { Text } from "../catalyst/typescript/text";
+import {
+  applyGraphChange,
+  applyGraphChanges,
+  solveGraph,
+  solveGraphIncr,
+  toCssOklch,
+  validateGraph,
+  type Constraint,
+  type Edge,
+  type Graph,
+  type GraphChange,
+  type GraphChanges,
+  type Node,
+  type OklchColor,
+  type SolutionConstraint,
+  type SolvedGraph,
+  type SolveError,
+} from "../../lib/solver";
+
+const STORAGE_KEY = "colorsat:solver:v1";
+const EMPTY_GRAPH: Graph = { nodes: [], edges: [] };
+const DARK_TEXT = "!text-gray-950 dark:!text-gray-950";
+const MUTED_TEXT = "!text-gray-500 dark:!text-gray-500";
+const PLAIN_BUTTON = "!text-gray-700 dark:!text-gray-700 hover:!bg-gray-950/5";
+const OUTLINE_BUTTON = "!text-gray-950 dark:!text-gray-950";
+
+type StoredSolverState = {
+  graph: Graph;
+  selectedNodeId: string | undefined;
+  hasSolvedBaseline: boolean;
+};
+
+type AlertVariant = "error" | "warning" | "info";
+
+const CONSTRAINT_TYPES: Constraint["type"][] = [
+  "contrast",
+  "fixed-lightness",
+  "fixed-chroma",
+  "fixed-hue",
+  "add-lightness",
+  "add-chroma",
+  "add-hue",
+  "multiply-lightness",
+  "multiply-chroma",
+  "multiply-hue",
+];
+
+const DEFAULT_CONSTRAINTS: Record<Constraint["type"], Constraint> = {
+  contrast: { type: "contrast", background: "source", value: 60, tolerance: 1 },
+  "fixed-lightness": { type: "fixed-lightness", value: 0.5, tolerance: 0.01 },
+  "fixed-chroma": { type: "fixed-chroma", value: 0.1, tolerance: 0.01 },
+  "fixed-hue": { type: "fixed-hue", value: 0, tolerance: 1 },
+  "add-lightness": { type: "add-lightness", value: 0, tolerance: 0.01 },
+  "add-chroma": { type: "add-chroma", value: 0, tolerance: 0.01 },
+  "add-hue": { type: "add-hue", value: 0, tolerance: 1 },
+  "multiply-lightness": { type: "multiply-lightness", value: 1, tolerance: 0.01 },
+  "multiply-chroma": { type: "multiply-chroma", value: 1, tolerance: 0.01 },
+  "multiply-hue": { type: "multiply-hue", value: 1, tolerance: 1 },
+};
+
+function id(prefix: string) {
+  return `${prefix}-${crypto.randomUUID()}`;
+}
+
+function labelForNode(node: Node | undefined) {
+  return node?.displayName.trim() || node?.id || "Unknown token";
+}
+
+function formatNumber(value: number | undefined, digits = 3) {
+  return value === undefined ? "-" : value.toFixed(digits).replace(/\.?0+$/, "");
+}
+
+function formatSolveError(error: SolveError) {
+  switch (error._tag) {
+    case "SchemaValidationError": {
+      const first = error.issues[0];
+      return first
+        ? `Invalid graph data: ${first.path.join(".") || "value"} ${first.message}`
+        : "Invalid graph data.";
+    }
+    case "CycleError":
+      return `Dataflow cycle detected: ${error.cycleNodeIds.join(" -> ")}.`;
+    case "DanglingEdgeError":
+      return `Edge ${error.edgeId} references missing ${error.role} node ${error.missingNodeId}.`;
+    case "DuplicateIdError":
+      return `Duplicate ${error.kind} ID: ${error.id}.`;
+    case "DuplicateEdgePairError":
+      return `Duplicate edge from ${error.sourceNodeId} to ${error.targetNodeId}.`;
+    case "UnknownIdError":
+      return `Unknown ${error.kind} ID: ${error.id}.`;
+    case "ImmutableFieldError":
+      return `Cannot change ${error.kind} ${error.id} field ${error.field}.`;
+    case "DanglingParentError":
+      return `Token ${error.nodeId} references missing outline parent ${error.missingParentNodeId}.`;
+    case "ParentCycleError":
+      return `Outline parent cycle detected: ${error.cycleNodeIds.join(" -> ")}.`;
+  }
+}
+
+function InlineAlert({
+  children,
+  title,
+  variant = "info",
+}: {
+  children: React.ReactNode;
+  title?: string;
+  variant?: AlertVariant;
+}) {
+  const tone = {
+    error: "border-red-200 bg-red-50 text-red-900",
+    warning: "border-amber-200 bg-amber-50 text-amber-950",
+    info: "border-blue-200 bg-blue-50 text-blue-950",
+  }[variant];
+
+  return (
+    <div
+      role={variant === "error" ? "alert" : undefined}
+      className={`rounded-xl border px-4 py-3 text-sm ${tone}`}
+    >
+      {title && <div className="font-semibold">{title}</div>}
+      <div className={title ? "mt-1" : undefined}>{children}</div>
+    </div>
+  );
+}
+
+function ColorSwatch({ color }: { color: OklchColor | undefined }) {
+  return (
+    <span
+      aria-hidden="true"
+      className="inline-block size-5 shrink-0 rounded-full border border-gray-950/10 bg-gray-100 shadow-sm"
+      style={color ? { backgroundColor: toCssOklch(color) } : undefined}
+    />
+  );
+}
+
+function loadStoredState(): {
+  state: StoredSolverState;
+  warning?: string;
+  solvedGraph?: SolvedGraph;
+  error?: SolveError;
+} {
+  if (typeof window === "undefined") {
+    return { state: { graph: EMPTY_GRAPH, selectedNodeId: undefined, hasSolvedBaseline: false } };
+  }
+
+  const fallback = { graph: EMPTY_GRAPH, selectedNodeId: undefined, hasSolvedBaseline: false };
+  const raw = window.localStorage.getItem(STORAGE_KEY);
+
+  if (!raw) {
+    return { state: fallback };
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as Partial<StoredSolverState>;
+    const graphResult = validateGraph(parsed.graph);
+
+    if (Result.isError(graphResult)) {
+      return { state: fallback, warning: "Saved solver state could not be loaded." };
+    }
+
+    const selectedNodeId = graphResult.value.nodes.some((node) => node.id === parsed.selectedNodeId)
+      ? parsed.selectedNodeId
+      : undefined;
+    const state = {
+      graph: graphResult.value,
+      selectedNodeId,
+      hasSolvedBaseline: parsed.hasSolvedBaseline === true,
+    };
+
+    if (!state.hasSolvedBaseline) {
+      return { state };
+    }
+
+    const solved = solveGraph(state.graph);
+
+    if (Result.isError(solved)) {
+      return { state: { ...state, hasSolvedBaseline: false }, error: solved.error };
+    }
+
+    return { state, solvedGraph: solved.value };
+  } catch {
+    return { state: fallback, warning: "Saved solver state could not be loaded." };
+  }
+}
+
+function exampleGraph(): Graph {
+  const bg: Node = {
+    id: id("node"),
+    parentNodeId: undefined,
+    displayName: "bg-primary",
+    fixedColor: { l: 1, c: 0, h: 0 },
+  };
+  const primary: Node = {
+    id: id("node"),
+    parentNodeId: bg.id,
+    displayName: "text-primary",
+    fixedColor: undefined,
+  };
+  const secondary: Node = {
+    id: id("node"),
+    parentNodeId: bg.id,
+    displayName: "text-secondary",
+    fixedColor: undefined,
+  };
+
+  return {
+    nodes: [bg, primary, secondary],
+    edges: [
+      {
+        id: id("edge"),
+        sourceNodeId: bg.id,
+        targetNodeId: primary.id,
+        constraints: [{ type: "contrast", background: "source", value: 90, tolerance: 2 }],
+      },
+      {
+        id: id("edge"),
+        sourceNodeId: bg.id,
+        targetNodeId: secondary.id,
+        constraints: [{ type: "contrast", background: "source", value: 70, tolerance: 2 }],
+      },
+    ],
+  };
+}
+
+export function SolverApp() {
+  const initial = useMemo(loadStoredState, []);
+  const [graph, setGraph] = useState(initial.state.graph);
+  const [selectedNodeId, setSelectedNodeId] = useState(initial.state.selectedNodeId);
+  const [solvedGraph, setSolvedGraph] = useState<SolvedGraph | undefined>(initial.solvedGraph);
+  const [hasSolvedBaseline, setHasSolvedBaseline] = useState(initial.state.hasSolvedBaseline);
+  const [solutionStale, setSolutionStale] = useState(false);
+  const [currentError, setCurrentError] = useState<SolveError | undefined>(initial.error);
+  const [storageWarning, setStorageWarning] = useState(initial.warning);
+  const [addEdgeTargetNodeId, setAddEdgeTargetNodeId] = useState<string | undefined>();
+
+  const selectedNode = graph.nodes.find((node) => node.id === selectedNodeId);
+
+  useEffect(() => {
+    window.localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ graph, selectedNodeId, hasSolvedBaseline } satisfies StoredSolverState),
+    );
+  }, [graph, selectedNodeId, hasSolvedBaseline]);
+
+  function acceptGraphChange(
+    result: Result<Graph, SolveError>,
+    changes: GraphChanges,
+    nextSelectedNodeId?: string,
+  ) {
+    if (Result.isError(result)) {
+      setCurrentError(result.error);
+      return;
+    }
+
+    setGraph(result.value);
+    setSelectedNodeId(nextSelectedNodeId ?? selectedNodeId);
+    setStorageWarning(undefined);
+
+    if (!hasSolvedBaseline || !solvedGraph) {
+      setSolutionStale(false);
+      return;
+    }
+
+    const solved = solveGraphIncr(solvedGraph, changes);
+
+    if (Result.isError(solved)) {
+      setCurrentError(solved.error);
+      setSolutionStale(true);
+      return;
+    }
+
+    setSolvedGraph(solved.value);
+    setCurrentError(undefined);
+    setSolutionStale(false);
+  }
+
+  function commitChange(change: GraphChange, nextSelectedNodeId?: string) {
+    acceptGraphChange(applyGraphChange(graph, change), [change], nextSelectedNodeId);
+  }
+
+  function commitChanges(changes: GraphChanges, nextSelectedNodeId?: string) {
+    acceptGraphChange(applyGraphChanges(graph, changes), changes, nextSelectedNodeId);
+  }
+
+  function addRootToken() {
+    const node: Node = {
+      id: id("node"),
+      parentNodeId: undefined,
+      displayName: `token-${graph.nodes.length + 1}`,
+      fixedColor: undefined,
+    };
+    commitChange({ type: "add-node", node }, node.id);
+  }
+
+  function addChild(parent: Node) {
+    const node: Node = {
+      id: id("node"),
+      parentNodeId: parent.id,
+      displayName: `${labelForNode(parent)}-child`,
+      fixedColor: undefined,
+    };
+    const edge: Edge = {
+      id: id("edge"),
+      sourceNodeId: parent.id,
+      targetNodeId: node.id,
+      constraints: [],
+    };
+    commitChanges(
+      [
+        { type: "add-node", node },
+        { type: "add-edge", edge },
+      ],
+      node.id,
+    );
+  }
+
+  function deleteNode(node: Node) {
+    const hasRelations =
+      graph.nodes.some((child) => child.parentNodeId === node.id) ||
+      graph.edges.some((edge) => edge.sourceNodeId === node.id || edge.targetNodeId === node.id);
+    if (
+      hasRelations &&
+      !window.confirm(`Delete ${labelForNode(node)} and remove attached dataflow edges?`)
+    ) {
+      return;
+    }
+
+    const remaining = graph.nodes.find((candidate) => candidate.id !== node.id);
+    commitChange(
+      { type: "remove-node", nodeId: node.id },
+      selectedNodeId === node.id ? remaining?.id : selectedNodeId,
+    );
+  }
+
+  function solveCurrentGraph() {
+    const solved = solveGraph(graph);
+
+    if (Result.isError(solved)) {
+      setCurrentError(solved.error);
+      setSolutionStale(hasSolvedBaseline);
+      return;
+    }
+
+    setSolvedGraph(solved.value);
+    setHasSolvedBaseline(true);
+    setSolutionStale(false);
+    setCurrentError(undefined);
+  }
+
+  function loadExample() {
+    const graph = exampleGraph();
+    const solved = solveGraph(graph);
+    setGraph(graph);
+    setSelectedNodeId(graph.nodes[1]?.id);
+    setCurrentError(Result.isError(solved) ? solved.error : undefined);
+    setSolvedGraph(Result.isOk(solved) ? solved.value : undefined);
+    setHasSolvedBaseline(Result.isOk(solved));
+    setSolutionStale(false);
+    setStorageWarning(undefined);
+  }
+
+  return (
+    <main className="min-h-dvh bg-gray-50 p-4 text-gray-950 sm:p-6 lg:p-8 [&_h1]:dark:!text-gray-950 [&_h2]:dark:!text-gray-950 [&_input]:dark:!text-gray-950 [&_p]:dark:!text-gray-500 [&_select]:dark:!text-gray-950">
+      <div className="mx-auto flex max-w-7xl flex-col gap-5">
+        <header className="flex flex-col gap-4 rounded-2xl border border-gray-950/10 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <Heading className={DARK_TEXT}>ColorSAT Solver</Heading>
+            <Text className={`mt-1 ${MUTED_TEXT}`}>
+              Build a color-token graph, solve constraints, and inspect derived OKLCH values.
+            </Text>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {hasSolvedBaseline ? (
+              <Badge color={solutionStale ? "amber" : "green"}>
+                {solutionStale ? "Stale solution" : "Solved"}
+              </Badge>
+            ) : (
+              <Badge color="gray">Not solved</Badge>
+            )}
+            <Button className={OUTLINE_BUTTON} outline onClick={addRootToken}>
+              Add root token
+            </Button>
+            <Button color="dark" onClick={solveCurrentGraph}>
+              {hasSolvedBaseline ? "Re-solve" : "Solve"}
+            </Button>
+          </div>
+        </header>
+
+        {storageWarning && <InlineAlert variant="warning">{storageWarning}</InlineAlert>}
+        {solutionStale && (
+          <InlineAlert variant="warning">
+            The last good solution is still visible, but recent edits could not be solved
+            incrementally. Re-solve after fixing the issue.
+          </InlineAlert>
+        )}
+        {currentError && (
+          <InlineAlert title="Solver error" variant="error">
+            {formatSolveError(currentError)}
+          </InlineAlert>
+        )}
+
+        {graph.nodes.length === 0 ? (
+          <section className="rounded-3xl border border-dashed border-gray-300 bg-white p-10 text-center shadow-sm">
+            <Subheading className={DARK_TEXT}>No tokens yet</Subheading>
+            <Text className={`mx-auto mt-2 max-w-lg ${MUTED_TEXT}`}>
+              Create the first token from scratch or load the example from the product brief.
+            </Text>
+            <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
+              <Button color="dark" onClick={addRootToken}>
+                Create first token
+              </Button>
+              <Button color="amber" onClick={loadExample}>
+                Load example
+              </Button>
+            </div>
+          </section>
+        ) : (
+          <div className="grid gap-5 lg:grid-cols-[minmax(18rem,22rem)_minmax(0,1fr)]">
+            <TokenOutline
+              graph={graph}
+              selectedNodeId={selectedNodeId}
+              solvedGraph={solvedGraph}
+              onAddChild={addChild}
+              onAddEdge={(nodeId) => setAddEdgeTargetNodeId(nodeId)}
+              onDelete={deleteNode}
+              onSelect={setSelectedNodeId}
+            />
+            <TokenSidebar
+              graph={graph}
+              node={selectedNode}
+              solvedGraph={solvedGraph}
+              solutionStale={solutionStale}
+              onUpdateNode={(node) => commitChange({ type: "update-node", node }, node.id)}
+              onDeleteEdge={(edgeId) => commitChange({ type: "remove-edge", edgeId })}
+              onUpdateEdge={(edge) => commitChange({ type: "update-edge", edge })}
+            />
+          </div>
+        )}
+      </div>
+
+      <AddEdgeDialog
+        graph={graph}
+        targetNodeId={addEdgeTargetNodeId}
+        onClose={() => setAddEdgeTargetNodeId(undefined)}
+        onAddEdge={(edge) => {
+          setAddEdgeTargetNodeId(undefined);
+          commitChange({ type: "add-edge", edge }, edge.targetNodeId);
+        }}
+      />
+    </main>
+  );
+}
+
+function TokenOutline({
+  graph,
+  selectedNodeId,
+  solvedGraph,
+  onAddChild,
+  onAddEdge,
+  onDelete,
+  onSelect,
+}: {
+  graph: Graph;
+  selectedNodeId: string | undefined;
+  solvedGraph: SolvedGraph | undefined;
+  onAddChild: (node: Node) => void;
+  onAddEdge: (targetNodeId: string) => void;
+  onDelete: (node: Node) => void;
+  onSelect: (nodeId: string) => void;
+}) {
+  const solvedById = new Map(solvedGraph?.nodes.map((node) => [node.id, node.solvedColor]));
+
+  function renderNode(node: Node, depth = 0): React.ReactNode {
+    const solvedColor = solvedById.get(node.id);
+    const children = graph.nodes.filter((child) => child.parentNodeId === node.id);
+
+    return (
+      <div key={node.id} className="space-y-1">
+        <div
+          className={`rounded-xl border p-2 ${selectedNodeId === node.id ? "border-gray-900 bg-gray-100" : "border-transparent hover:bg-gray-50"}`}
+          style={{ marginLeft: depth * 14 }}
+        >
+          <button
+            type="button"
+            className="flex w-full items-center gap-2 text-left"
+            onClick={() => onSelect(node.id)}
+          >
+            <ColorSwatch color={solvedColor} />
+            <span className="min-w-0 flex-1 truncate text-sm font-medium text-gray-950">
+              {labelForNode(node)}
+            </span>
+            {node.fixedColor && <Badge color="blue">Fixed</Badge>}
+            {!solvedColor && <span className="text-xs text-gray-400">Unsolved</span>}
+          </button>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            <Button className={PLAIN_BUTTON} plain onClick={() => onAddChild(node)}>
+              Add child
+            </Button>
+            <Button className={PLAIN_BUTTON} plain onClick={() => onAddEdge(node.id)}>
+              Add edge
+            </Button>
+            <Button className={PLAIN_BUTTON} plain onClick={() => onDelete(node)}>
+              Delete
+            </Button>
+          </div>
+        </div>
+        {children.map((child) => renderNode(child, depth + 1))}
+      </div>
+    );
+  }
+
+  return (
+    <section className="rounded-2xl border border-gray-950/10 bg-white p-4 shadow-sm">
+      <div className="flex items-center justify-between gap-3">
+        <Subheading className={DARK_TEXT}>Token Outline</Subheading>
+        <Text className={MUTED_TEXT}>{graph.nodes.length} tokens</Text>
+      </div>
+      <div className="mt-4 space-y-1">
+        {graph.nodes
+          .filter((node) => node.parentNodeId === undefined)
+          .map((node) => renderNode(node))}
+      </div>
+    </section>
+  );
+}
+
+function TokenSidebar({
+  graph,
+  node,
+  solvedGraph,
+  solutionStale,
+  onUpdateNode,
+  onDeleteEdge,
+  onUpdateEdge,
+}: {
+  graph: Graph;
+  node: Node | undefined;
+  solvedGraph: SolvedGraph | undefined;
+  solutionStale: boolean;
+  onUpdateNode: (node: Node) => void;
+  onDeleteEdge: (edgeId: string) => void;
+  onUpdateEdge: (edge: Edge) => void;
+}) {
+  if (!node) {
+    return (
+      <section className="rounded-2xl border border-gray-950/10 bg-white p-6 shadow-sm">
+        <Subheading className={DARK_TEXT}>Select a token to edit it.</Subheading>
+      </section>
+    );
+  }
+
+  const incomingEdges = graph.edges.filter((edge) => edge.targetNodeId === node.id);
+  const solvedColor = solvedGraph?.nodes.find(
+    (solutionNode) => solutionNode.id === node.id,
+  )?.solvedColor;
+
+  return (
+    <section className="rounded-2xl border border-gray-950/10 bg-white p-5 shadow-sm">
+      <div className="flex flex-col gap-4">
+        <div>
+          <Subheading className={DARK_TEXT}>Token Sidebar</Subheading>
+          <Text className={`mt-1 break-all ${MUTED_TEXT}`}>{node.id}</Text>
+        </div>
+
+        <Field label="Name">
+          <Input
+            type="text"
+            value={node.displayName}
+            onChange={(event) => onUpdateNode({ ...node, displayName: event.target.value })}
+          />
+        </Field>
+
+        <div className="rounded-xl border border-gray-950/10 p-4">
+          <div className="flex items-center justify-between gap-3">
+            <Subheading className={DARK_TEXT}>Fixed Color</Subheading>
+            <Button
+              className={OUTLINE_BUTTON}
+              outline
+              onClick={() =>
+                onUpdateNode({
+                  ...node,
+                  fixedColor: node.fixedColor ? undefined : { l: 1, c: 0, h: 0 },
+                })
+              }
+            >
+              {node.fixedColor ? "Clear" : "Set fixed"}
+            </Button>
+          </div>
+          {node.fixedColor ? (
+            <OklchFields
+              color={node.fixedColor}
+              onChange={(fixedColor) => onUpdateNode({ ...node, fixedColor })}
+            />
+          ) : (
+            <Text className={`mt-3 ${MUTED_TEXT}`}>
+              No fixed color. This token will be solved from source tokens.
+            </Text>
+          )}
+        </div>
+
+        <div className="rounded-xl border border-gray-950/10 p-4">
+          <div className="flex items-center gap-3">
+            <ColorSwatch color={solvedColor} />
+            <div>
+              <Subheading className={DARK_TEXT}>
+                Solved Color {solutionStale && <Badge color="amber">Stale</Badge>}
+              </Subheading>
+              {solvedColor ? (
+                <Text className={MUTED_TEXT}>
+                  L {formatNumber(solvedColor.l)} / C {formatNumber(solvedColor.c)} / H{" "}
+                  {formatNumber(solvedColor.h, 1)}
+                </Text>
+              ) : (
+                <Text className={MUTED_TEXT}>
+                  No solved color yet. Add a fixed color or source token, then solve.
+                </Text>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <Divider />
+        <div className="space-y-4">
+          <Subheading className={DARK_TEXT}>Source Tokens</Subheading>
+          {incomingEdges.length === 0 && (
+            <Text className={MUTED_TEXT}>No source tokens feed into this token.</Text>
+          )}
+          {incomingEdges.map((edge) => {
+            const source = graph.nodes.find((sourceNode) => sourceNode.id === edge.sourceNodeId);
+            const solutionEdge = solvedGraph?.edges.find((candidate) => candidate.id === edge.id);
+            return (
+              <div key={edge.id} className="rounded-xl border border-gray-950/10 p-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <div className="text-sm font-semibold text-gray-950">
+                      {labelForNode(source)}
+                    </div>
+                    <Text className={`break-all ${MUTED_TEXT}`}>{edge.id}</Text>
+                  </div>
+                  <Button className={OUTLINE_BUTTON} outline onClick={() => onDeleteEdge(edge.id)}>
+                    Delete edge
+                  </Button>
+                </div>
+                <ConstraintEditor
+                  edge={edge}
+                  solutionConstraints={solutionEdge?.constraints}
+                  onUpdateEdge={onUpdateEdge}
+                />
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function ConstraintEditor({
+  edge,
+  solutionConstraints,
+  onUpdateEdge,
+}: {
+  edge: Edge;
+  solutionConstraints: SolutionConstraint[] | undefined;
+  onUpdateEdge: (edge: Edge) => void;
+}) {
+  function updateConstraint(index: number, constraint: Constraint) {
+    onUpdateEdge({
+      ...edge,
+      constraints: edge.constraints.map((item, itemIndex) =>
+        itemIndex === index ? constraint : item,
+      ),
+    });
+  }
+
+  return (
+    <div className="mt-4 space-y-3">
+      {edge.constraints.map((constraint, index) => {
+        const solution = solutionConstraints?.[index];
+        return (
+          <div key={index} className="rounded-lg bg-gray-50 p-3">
+            <div className="grid gap-3 md:grid-cols-[minmax(12rem,1fr)_7rem_7rem_auto]">
+              <Field label="Type">
+                <Select
+                  value={constraint.type}
+                  onChange={(event) =>
+                    updateConstraint(
+                      index,
+                      changeConstraintType(constraint, event.target.value as Constraint["type"]),
+                    )
+                  }
+                >
+                  {CONSTRAINT_TYPES.map((type) => (
+                    <option key={type} value={type}>
+                      {type}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+              <Field label="Value">
+                <Input
+                  type="number"
+                  step="0.001"
+                  value={constraint.value}
+                  onChange={(event) =>
+                    updateConstraint(index, {
+                      ...constraint,
+                      value: numberValue(event.target.value, constraint.value),
+                    } as Constraint)
+                  }
+                />
+              </Field>
+              <Field label="Tolerance">
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.001"
+                  value={constraint.tolerance}
+                  onChange={(event) =>
+                    updateConstraint(index, {
+                      ...constraint,
+                      tolerance: numberValue(event.target.value, constraint.tolerance),
+                    } as Constraint)
+                  }
+                />
+              </Field>
+              <div className="flex items-end">
+                <Button
+                  className={PLAIN_BUTTON}
+                  plain
+                  onClick={() =>
+                    onUpdateEdge({
+                      ...edge,
+                      constraints: edge.constraints.filter((_, itemIndex) => itemIndex !== index),
+                    })
+                  }
+                >
+                  Delete
+                </Button>
+              </div>
+            </div>
+            {constraint.type === "contrast" && (
+              <Field label="Background" className="mt-3 max-w-xs">
+                <Select
+                  value={constraint.background}
+                  onChange={(event) =>
+                    updateConstraint(index, {
+                      ...constraint,
+                      background: event.target.value as "source" | "target",
+                    })
+                  }
+                >
+                  <option value="source">source</option>
+                  <option value="target">target</option>
+                </Select>
+              </Field>
+            )}
+            <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-gray-600">
+              {solution ? (
+                <Badge color={solution.valueInTolerance ? "green" : "red"}>
+                  {solution.valueInTolerance ? "Pass" : "Fail"}
+                </Badge>
+              ) : (
+                <Badge color="gray">Not solved yet</Badge>
+              )}
+              <span>Error: {formatNumber(solution?.error, 4)}</span>
+              <span>Target: {formatNumber(solution?.value ?? constraint.value, 4)}</span>
+            </div>
+          </div>
+        );
+      })}
+      <Button
+        className={OUTLINE_BUTTON}
+        outline
+        onClick={() =>
+          onUpdateEdge({
+            ...edge,
+            constraints: [...edge.constraints, DEFAULT_CONSTRAINTS.contrast],
+          })
+        }
+      >
+        Add constraint
+      </Button>
+    </div>
+  );
+}
+
+function AddEdgeDialog({
+  graph,
+  targetNodeId,
+  onClose,
+  onAddEdge,
+}: {
+  graph: Graph;
+  targetNodeId: string | undefined;
+  onClose: () => void;
+  onAddEdge: (edge: Edge) => void;
+}) {
+  const [query, setQuery] = useState("");
+  const target = graph.nodes.find((node) => node.id === targetNodeId);
+  const candidates = graph.nodes.filter((node) => {
+    if (!targetNodeId || node.id === targetNodeId) return false;
+    if (!`${node.displayName} ${node.id}`.toLowerCase().includes(query.toLowerCase())) return false;
+    const edge: Edge = { id: id("edge"), sourceNodeId: node.id, targetNodeId, constraints: [] };
+    return Result.isOk(applyGraphChange(graph, { type: "add-edge", edge }));
+  });
+
+  return (
+    <Dialog open={targetNodeId !== undefined} onClose={onClose} size="lg">
+      <DialogTitle className={DARK_TEXT}>Add source token</DialogTitle>
+      <DialogDescription className={MUTED_TEXT}>
+        Choose a token that should feed into {labelForNode(target)}.
+      </DialogDescription>
+      <DialogBody>
+        <Input
+          type="search"
+          placeholder="Search tokens"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+        />
+        <div className="mt-4 max-h-80 space-y-2 overflow-auto">
+          {candidates.length === 0 && (
+            <Text className={MUTED_TEXT}>No valid source candidates.</Text>
+          )}
+          {candidates.map((node) => (
+            <button
+              key={node.id}
+              type="button"
+              className="flex w-full items-center justify-between gap-3 rounded-xl border border-gray-950/10 p-3 text-left hover:bg-gray-50"
+              onClick={() =>
+                targetNodeId &&
+                onAddEdge({ id: id("edge"), sourceNodeId: node.id, targetNodeId, constraints: [] })
+              }
+            >
+              <span className="font-medium text-gray-950">{labelForNode(node)}</span>
+              <span className="text-xs text-gray-500">{node.id}</span>
+            </button>
+          ))}
+        </div>
+      </DialogBody>
+      <DialogActions>
+        <Button className={OUTLINE_BUTTON} outline onClick={onClose}>
+          Cancel
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
+function OklchFields({
+  color,
+  onChange,
+}: {
+  color: OklchColor;
+  onChange: (color: OklchColor) => void;
+}) {
+  return (
+    <div className="mt-4 grid gap-3 sm:grid-cols-3">
+      <Field label="L">
+        <Input
+          type="number"
+          min="0"
+          max="1"
+          step="0.001"
+          value={color.l}
+          onChange={(event) => onChange({ ...color, l: numberValue(event.target.value, color.l) })}
+        />
+      </Field>
+      <Field label="C">
+        <Input
+          type="number"
+          min="0"
+          step="0.001"
+          value={color.c}
+          onChange={(event) => onChange({ ...color, c: numberValue(event.target.value, color.c) })}
+        />
+      </Field>
+      <Field label="H">
+        <Input
+          type="number"
+          min="0"
+          max="360"
+          step="0.1"
+          value={color.h}
+          onChange={(event) => onChange({ ...color, h: numberValue(event.target.value, color.h) })}
+        />
+      </Field>
+    </div>
+  );
+}
+
+function Field({
+  children,
+  className,
+  label,
+}: {
+  children: React.ReactNode;
+  className?: string;
+  label: string;
+}) {
+  return (
+    <label className={`block ${className ?? ""}`}>
+      <span className="mb-1 block text-xs font-medium tracking-wide text-gray-500 uppercase">
+        {label}
+      </span>
+      {children}
+    </label>
+  );
+}
+
+function numberValue(value: string, fallback: number) {
+  const next = Number(value);
+  return Number.isFinite(next) ? next : fallback;
+}
+
+function changeConstraintType(constraint: Constraint, type: Constraint["type"]): Constraint {
+  const defaults = DEFAULT_CONSTRAINTS[type];
+  return { ...defaults, value: constraint.value, tolerance: constraint.tolerance } as Constraint;
+}

@@ -14,10 +14,6 @@
   --color-gray-950: var(--color-taupe-950);
 }
 
-* {
-  text-box: trim-both cap alphabetic;
-}
-
 code {
   font-family: var(--font-mono);
 }

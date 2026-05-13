@@ -10,11 +10,17 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SpectrumRouteImport } from './routes/spectrum'
+import { Route as SolverRouteImport } from './routes/solver'
 import { Route as IndexRouteImport } from './routes/index'
 
 const SpectrumRoute = SpectrumRouteImport.update({
   id: '/spectrum',
   path: '/spectrum',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SolverRoute = SolverRouteImport.update({
+  id: '/solver',
+  path: '/solver',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -25,27 +31,31 @@ const IndexRoute = IndexRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/solver': typeof SolverRoute
   '/spectrum': typeof SpectrumRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/solver': typeof SolverRoute
   '/spectrum': typeof SpectrumRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/solver': typeof SolverRoute
   '/spectrum': typeof SpectrumRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/spectrum'
+  fullPaths: '/' | '/solver' | '/spectrum'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/spectrum'
-  id: '__root__' | '/' | '/spectrum'
+  to: '/' | '/solver' | '/spectrum'
+  id: '__root__' | '/' | '/solver' | '/spectrum'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  SolverRoute: typeof SolverRoute
   SpectrumRoute: typeof SpectrumRoute
 }
 
@@ -56,6 +66,13 @@ declare module '@tanstack/react-router' {
       path: '/spectrum'
       fullPath: '/spectrum'
       preLoaderRoute: typeof SpectrumRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/solver': {
+      id: '/solver'
+      path: '/solver'
+      fullPath: '/solver'
+      preLoaderRoute: typeof SolverRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -70,6 +87,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  SolverRoute: SolverRoute,
   SpectrumRoute: SpectrumRoute,
 }
 export const routeTree = rootRouteImport
