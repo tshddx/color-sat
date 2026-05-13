@@ -69,6 +69,7 @@ export const GraphSchema = z.object({
 export const SolutionConstraintSchema = z.object({
   type: constraintTypeSchema,
   value: finiteNumber,
+  actual: finiteNumber.optional(),
   error: finiteNumber.optional(),
   valueInTolerance: z.boolean(),
 });

@@ -202,39 +202,109 @@ function loadStoredState(): {
 }
 
 function exampleGraph(): Graph {
-  const bg: Node = {
+  const bgPrimary: Node = {
     id: id("node"),
     parentNodeId: undefined,
     displayName: "bg-primary",
     fixedColor: { l: 1, c: 0, h: 0 },
   };
-  const primary: Node = {
+  const textPrimary: Node = {
     id: id("node"),
-    parentNodeId: bg.id,
+    parentNodeId: bgPrimary.id,
     displayName: "text-primary",
     fixedColor: undefined,
   };
-  const secondary: Node = {
+  const textSecondary: Node = {
     id: id("node"),
-    parentNodeId: bg.id,
+    parentNodeId: bgPrimary.id,
     displayName: "text-secondary",
+    fixedColor: undefined,
+  };
+  const bgYellow: Node = {
+    id: id("node"),
+    parentNodeId: undefined,
+    displayName: "bg-yellow",
+    fixedColor: { l: 0.987, c: 0.022, h: 95.277 },
+  };
+  const textYellow: Node = {
+    id: id("node"),
+    parentNodeId: bgYellow.id,
+    displayName: "text-yellow",
+    fixedColor: undefined,
+  };
+  const textYellowSecondary: Node = {
+    id: id("node"),
+    parentNodeId: bgYellow.id,
+    displayName: "text-yellow-secondary",
+    fixedColor: undefined,
+  };
+  const bgPurple: Node = {
+    id: id("node"),
+    parentNodeId: undefined,
+    displayName: "bg-purple",
+    fixedColor: { l: 0.969, c: 0.016, h: 293.756 },
+  };
+  const textPurple: Node = {
+    id: id("node"),
+    parentNodeId: bgPurple.id,
+    displayName: "text-purple",
+    fixedColor: undefined,
+  };
+  const textPurpleSecondary: Node = {
+    id: id("node"),
+    parentNodeId: bgPurple.id,
+    displayName: "text-purple-secondary",
     fixedColor: undefined,
   };
 
   return {
-    nodes: [bg, primary, secondary],
+    nodes: [
+      bgPrimary,
+      textPrimary,
+      textSecondary,
+      bgYellow,
+      textYellow,
+      textYellowSecondary,
+      bgPurple,
+      textPurple,
+      textPurpleSecondary,
+    ],
     edges: [
       {
         id: id("edge"),
-        sourceNodeId: bg.id,
-        targetNodeId: primary.id,
+        sourceNodeId: bgPrimary.id,
+        targetNodeId: textPrimary.id,
         constraints: [{ type: "contrast", background: "source", value: 90, tolerance: 2 }],
       },
       {
         id: id("edge"),
-        sourceNodeId: bg.id,
-        targetNodeId: secondary.id,
-        constraints: [{ type: "contrast", background: "source", value: 70, tolerance: 2 }],
+        sourceNodeId: bgPrimary.id,
+        targetNodeId: textSecondary.id,
+        constraints: [{ type: "contrast", background: "source", value: 60, tolerance: 2 }],
+      },
+      {
+        id: id("edge"),
+        sourceNodeId: bgYellow.id,
+        targetNodeId: textYellow.id,
+        constraints: [{ type: "contrast", background: "source", value: 90, tolerance: 2 }],
+      },
+      {
+        id: id("edge"),
+        sourceNodeId: bgYellow.id,
+        targetNodeId: textYellowSecondary.id,
+        constraints: [{ type: "contrast", background: "source", value: 60, tolerance: 2 }],
+      },
+      {
+        id: id("edge"),
+        sourceNodeId: bgPurple.id,
+        targetNodeId: textPurple.id,
+        constraints: [{ type: "contrast", background: "source", value: 90, tolerance: 2 }],
+      },
+      {
+        id: id("edge"),
+        sourceNodeId: bgPurple.id,
+        targetNodeId: textPurpleSecondary.id,
+        constraints: [{ type: "contrast", background: "source", value: 60, tolerance: 2 }],
       },
     ],
   };
@@ -377,6 +447,18 @@ export function SolverApp() {
     setStorageWarning(undefined);
   }
 
+  function resetAllState() {
+    window.localStorage.clear();
+    setGraph(EMPTY_GRAPH);
+    setSelectedNodeId(undefined);
+    setSolvedGraph(undefined);
+    setHasSolvedBaseline(false);
+    setSolutionStale(false);
+    setCurrentError(undefined);
+    setStorageWarning(undefined);
+    setAddEdgeTargetNodeId(undefined);
+  }
+
   return (
     <main className="min-h-dvh bg-gray-50 p-4 text-gray-950 sm:p-6 lg:p-8 [&_h1]:dark:!text-gray-950 [&_h2]:dark:!text-gray-950 [&_input]:dark:!text-gray-950 [&_p]:dark:!text-gray-500 [&_select]:dark:!text-gray-950">
       <div className="mx-auto flex max-w-7xl flex-col gap-5">
@@ -454,6 +536,15 @@ export function SolverApp() {
             />
           </div>
         )}
+
+        <footer className="flex flex-col gap-3 rounded-2xl border border-gray-950/10 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+          <Text className={MUTED_TEXT}>
+            Clear saved browser data and reset this solver session.
+          </Text>
+          <Button className={OUTLINE_BUTTON} outline onClick={resetAllState}>
+            Reset local state
+          </Button>
+        </footer>
       </div>
 
       <AddEdgeDialog
@@ -487,10 +578,15 @@ function TokenOutline({
   onSelect: (nodeId: string) => void;
 }) {
   const solvedById = new Map(solvedGraph?.nodes.map((node) => [node.id, node.solvedColor]));
+  const rootNodes = graph.nodes.filter((node) => node.parentNodeId === undefined);
+
+  function childNodes(nodeId: string) {
+    return graph.nodes.filter((child) => child.parentNodeId === nodeId);
+  }
 
   function renderNode(node: Node, depth = 0): React.ReactNode {
     const solvedColor = solvedById.get(node.id);
-    const children = graph.nodes.filter((child) => child.parentNodeId === node.id);
+    const children = childNodes(node.id);
 
     return (
       <div key={node.id} className="space-y-1">
@@ -533,11 +629,7 @@ function TokenOutline({
         <Subheading className={DARK_TEXT}>Token Outline</Subheading>
         <Text className={MUTED_TEXT}>{graph.nodes.length} tokens</Text>
       </div>
-      <div className="mt-4 space-y-1">
-        {graph.nodes
-          .filter((node) => node.parentNodeId === undefined)
-          .map((node) => renderNode(node))}
-      </div>
+      <div className="mt-4 space-y-1">{rootNodes.map((node) => renderNode(node))}</div>
     </section>
   );
 }
@@ -781,8 +873,9 @@ function ConstraintEditor({
               ) : (
                 <Badge color="gray">Not solved yet</Badge>
               )}
-              <span>Error: {formatNumber(solution?.error, 4)}</span>
               <span>Target: {formatNumber(solution?.value ?? constraint.value, 4)}</span>
+              <span>Actual: {formatNumber(solution?.actual, 4)}</span>
+              <span>Error: {formatNumber(solution?.error, 4)}</span>
             </div>
           </div>
         );

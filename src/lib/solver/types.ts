@@ -50,6 +50,7 @@ export type SolutionNode = {
 export type SolutionConstraint = {
   type: Constraint["type"];
   value: number;
+  actual: number | undefined;
   error: number | undefined;
   valueInTolerance: boolean;
 };

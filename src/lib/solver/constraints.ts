@@ -79,6 +79,38 @@ export function constraintError(
   }
 }
 
+function actualConstraintValue(
+  source: OklchColor | undefined,
+  target: OklchColor | undefined,
+  constraint: Constraint,
+): number | undefined {
+  if (!source || !target) {
+    return undefined;
+  }
+
+  const normalizedTarget = normalizeOklch(target);
+
+  switch (constraint.type) {
+    case "contrast": {
+      const actualLc =
+        constraint.background === "source" ? apcaLc(target, source) : apcaLc(source, target);
+      return actualLc === undefined ? undefined : Math.abs(actualLc);
+    }
+    case "fixed-lightness":
+    case "add-lightness":
+    case "multiply-lightness":
+      return normalizedTarget.l;
+    case "fixed-chroma":
+    case "add-chroma":
+    case "multiply-chroma":
+      return normalizedTarget.c;
+    case "fixed-hue":
+    case "add-hue":
+    case "multiply-hue":
+      return normalizedTarget.h;
+  }
+}
+
 export function evaluateSolutionConstraint(
   source: OklchColor | undefined,
   target: OklchColor | undefined,
@@ -89,6 +121,7 @@ export function evaluateSolutionConstraint(
   return {
     type: constraint.type,
     value: constraint.value,
+    actual: actualConstraintValue(source, target, constraint),
     error,
     valueInTolerance: error !== undefined && error <= constraint.tolerance,
   };
