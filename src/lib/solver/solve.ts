@@ -202,6 +202,25 @@ function pickBetterCandidate(current: CandidateScore | undefined, next: Candidat
   return next.color.h < current.color.h ? next : current;
 }
 
+function constraintCount(sourceEdges: SourceEdge[]) {
+  return sourceEdges.reduce((count, { edge }) => count + edge.constraints.length, 0);
+}
+
+function contrastChromaSearchGroups(chroma: number) {
+  const groups = [[chroma]];
+
+  if (chroma === 0) {
+    return groups;
+  }
+
+  for (let step = 1; step <= 5; step += 1) {
+    const ratio = step / 10;
+    groups.push([chroma * (1 - ratio), chroma * (1 + ratio)]);
+  }
+
+  return groups;
+}
+
 function solveDerivedColor(sourceEdges: SourceEdge[]) {
   const fallback = defaultColor(sourceEdges);
   const touched = touchedAttributes(sourceEdges);
@@ -221,19 +240,32 @@ function solveDerivedColor(sourceEdges: SourceEdge[]) {
 
   let best: CandidateScore | undefined;
   const hue = base.h;
+  const constraints = constraintCount(sourceEdges);
+  const chromaSearchGroups = hasContrast
+    ? contrastChromaSearchGroups(base.c)
+    : [Array.from({ length: CHROMA_STEPS + 1 }, (_, step) => (step / CHROMA_STEPS) * 0.45)];
 
-  for (let lStep = 0; lStep <= LIGHTNESS_STEPS; lStep += 1) {
-    const l = lStep / LIGHTNESS_STEPS;
+  for (const chromaCandidates of chromaSearchGroups) {
+    let bestInGroup: CandidateScore | undefined;
 
-    for (let cStep = 0; cStep <= CHROMA_STEPS; cStep += 1) {
-      const c = (cStep / CHROMA_STEPS) * 0.45;
-      const candidate = normalizeOklch({ l, c, h: hue });
+    for (let lStep = 0; lStep <= LIGHTNESS_STEPS; lStep += 1) {
+      const l = lStep / LIGHTNESS_STEPS;
 
-      if (!isDisplayP3Oklch(candidate)) {
-        continue;
+      for (const c of chromaCandidates) {
+        const candidate = normalizeOklch({ l, c, h: hue });
+
+        if (!isDisplayP3Oklch(candidate)) {
+          continue;
+        }
+
+        const score = scoreCandidate(sourceEdges, candidate, fallback);
+        best = pickBetterCandidate(best, score);
+        bestInGroup = pickBetterCandidate(bestInGroup, score);
       }
+    }
 
-      best = pickBetterCandidate(best, scoreCandidate(sourceEdges, candidate, fallback));
+    if (bestInGroup?.inToleranceCount === constraints) {
+      return bestInGroup.color;
     }
   }
 

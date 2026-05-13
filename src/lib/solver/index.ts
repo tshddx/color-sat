@@ -38,4 +38,5 @@ export {
   topologicalNodeIds,
   validateGraph,
 } from "./graph";
+export { exampleGraph } from "./example-graph";
 export { solveGraph, solveGraphIncr } from "./solve";

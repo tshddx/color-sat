@@ -4,6 +4,7 @@ import {
   applyGraphChange,
   applyGraphChanges,
   constraintError,
+  exampleGraph,
   solveGraph,
   solveGraphIncr,
   validateGraph,
@@ -246,6 +247,63 @@ describe("solving", () => {
     );
 
     expect(solved.nodes[1]?.solvedColor?.l).toBeLessThan(0.5);
+    expect(solved.edges[0]?.constraints[0]?.valueInTolerance).toBe(true);
+  });
+
+  it("preserves source hue and chroma for example graph text colors", () => {
+    const graph = exampleGraph();
+    const solved = okValue(solveGraph(graph));
+    const pairs = [
+      ["bg-primary", "text-primary"],
+      ["bg-primary", "text-secondary"],
+      ["bg-yellow", "text-yellow"],
+      ["bg-yellow", "text-yellow-secondary"],
+      ["bg-purple", "text-purple"],
+      ["bg-purple", "text-purple-secondary"],
+    ] as const;
+
+    for (const [sourceName, targetName] of pairs) {
+      const source = graph.nodes.find((candidate) => candidate.displayName === sourceName);
+      const target = graph.nodes.find((candidate) => candidate.displayName === targetName);
+      const solvedTarget = solved.nodes.find((candidate) => candidate.id === target?.id);
+
+      expect(source?.fixedColor).toBeDefined();
+      expect(solvedTarget?.solvedColor).toBeDefined();
+      expect(solvedTarget?.solvedColor?.h).toBeCloseTo(source?.fixedColor?.h ?? 0, 5);
+      expect(solvedTarget?.solvedColor?.c).toBeCloseTo(source?.fixedColor?.c ?? 0, 2);
+    }
+  });
+
+  it("falls back to nearby chroma when source chroma cannot satisfy contrast", () => {
+    const solved = okValue(
+      solveGraph({
+        nodes: [node("background", { l: 0.7, c: 0.1, h: 40 }), node("text")],
+        edges: [
+          edge("background-text", "background", "text", [
+            { type: "contrast", background: "source", value: 10, tolerance: 0.5 },
+          ]),
+        ],
+      }),
+    );
+
+    expect(solved.nodes[1]?.solvedColor?.h).toBeCloseTo(40, 5);
+    expect(solved.nodes[1]?.solvedColor?.c).toBeCloseTo(0.11, 5);
+    expect(solved.edges[0]?.constraints[0]?.valueInTolerance).toBe(true);
+  });
+
+  it("does not fall back to non-zero chroma from a zero-chroma source", () => {
+    const solved = okValue(
+      solveGraph({
+        nodes: [node("background", white), node("text")],
+        edges: [
+          edge("background-text", "background", "text", [
+            { type: "contrast", background: "source", value: 90, tolerance: 3 },
+          ]),
+        ],
+      }),
+    );
+
+    expect(solved.nodes[1]?.solvedColor?.c).toBeCloseTo(0, 5);
     expect(solved.edges[0]?.constraints[0]?.valueInTolerance).toBe(true);
   });
 

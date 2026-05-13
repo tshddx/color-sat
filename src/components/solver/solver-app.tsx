@@ -19,6 +19,7 @@ import { Text } from "../catalyst/typescript/text";
 import {
   applyGraphChange,
   applyGraphChanges,
+  exampleGraph,
   solveGraph,
   solveGraphIncr,
   toCssOklch,
@@ -199,115 +200,6 @@ function loadStoredState(): {
   } catch {
     return { state: fallback, warning: "Saved solver state could not be loaded." };
   }
-}
-
-function exampleGraph(): Graph {
-  const bgPrimary: Node = {
-    id: id("node"),
-    parentNodeId: undefined,
-    displayName: "bg-primary",
-    fixedColor: { l: 1, c: 0, h: 0 },
-  };
-  const textPrimary: Node = {
-    id: id("node"),
-    parentNodeId: bgPrimary.id,
-    displayName: "text-primary",
-    fixedColor: undefined,
-  };
-  const textSecondary: Node = {
-    id: id("node"),
-    parentNodeId: bgPrimary.id,
-    displayName: "text-secondary",
-    fixedColor: undefined,
-  };
-  const bgYellow: Node = {
-    id: id("node"),
-    parentNodeId: undefined,
-    displayName: "bg-yellow",
-    fixedColor: { l: 0.987, c: 0.022, h: 95.277 },
-  };
-  const textYellow: Node = {
-    id: id("node"),
-    parentNodeId: bgYellow.id,
-    displayName: "text-yellow",
-    fixedColor: undefined,
-  };
-  const textYellowSecondary: Node = {
-    id: id("node"),
-    parentNodeId: bgYellow.id,
-    displayName: "text-yellow-secondary",
-    fixedColor: undefined,
-  };
-  const bgPurple: Node = {
-    id: id("node"),
-    parentNodeId: undefined,
-    displayName: "bg-purple",
-    fixedColor: { l: 0.969, c: 0.016, h: 293.756 },
-  };
-  const textPurple: Node = {
-    id: id("node"),
-    parentNodeId: bgPurple.id,
-    displayName: "text-purple",
-    fixedColor: undefined,
-  };
-  const textPurpleSecondary: Node = {
-    id: id("node"),
-    parentNodeId: bgPurple.id,
-    displayName: "text-purple-secondary",
-    fixedColor: undefined,
-  };
-
-  return {
-    nodes: [
-      bgPrimary,
-      textPrimary,
-      textSecondary,
-      bgYellow,
-      textYellow,
-      textYellowSecondary,
-      bgPurple,
-      textPurple,
-      textPurpleSecondary,
-    ],
-    edges: [
-      {
-        id: id("edge"),
-        sourceNodeId: bgPrimary.id,
-        targetNodeId: textPrimary.id,
-        constraints: [{ type: "contrast", background: "source", value: 90, tolerance: 2 }],
-      },
-      {
-        id: id("edge"),
-        sourceNodeId: bgPrimary.id,
-        targetNodeId: textSecondary.id,
-        constraints: [{ type: "contrast", background: "source", value: 60, tolerance: 2 }],
-      },
-      {
-        id: id("edge"),
-        sourceNodeId: bgYellow.id,
-        targetNodeId: textYellow.id,
-        constraints: [{ type: "contrast", background: "source", value: 90, tolerance: 2 }],
-      },
-      {
-        id: id("edge"),
-        sourceNodeId: bgYellow.id,
-        targetNodeId: textYellowSecondary.id,
-        constraints: [{ type: "contrast", background: "source", value: 60, tolerance: 2 }],
-      },
-      {
-        id: id("edge"),
-        sourceNodeId: bgPurple.id,
-        targetNodeId: textPurple.id,
-        constraints: [{ type: "contrast", background: "source", value: 90, tolerance: 2 }],
-      },
-      {
-        id: id("edge"),
-        sourceNodeId: bgPurple.id,
-        targetNodeId: textPurpleSecondary.id,
-        constraints: [{ type: "contrast", background: "source", value: 60, tolerance: 2 }],
-      },
-    ],
-  };
 }
 
 export function SolverApp() {
