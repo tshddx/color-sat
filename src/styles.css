@@ -1,5 +1,11 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  color-scheme: light;
+}
+
 @theme inline {
   --color-gray-50: var(--color-taupe-50);
   --color-gray-100: var(--color-taupe-100);
