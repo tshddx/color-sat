@@ -325,7 +325,11 @@ export function PreviewWidget({
             ["NCRs", "0 Open"],
             ["Dispatch", "18:40 UTC"],
           ].map(([label, value]) => (
-            <div className="rounded-2xl border px-4 py-3" key={label} style={previewBorderStyle}>
+            <div
+              className="rounded-2xl border px-4 py-3"
+              key={label}
+              style={{ ...previewBorderStyle, backgroundColor: tokens.secondaryBackground }}
+            >
               <Text
                 className="font-mono text-sm uppercase tracking-[0.16em]"
                 style={{ color: tokens.secondaryText }}
@@ -467,7 +471,10 @@ export function PreviewWidget({
             </div>
           </div>
 
-          <div className="rounded-3xl border p-4" style={previewBorderStyle}>
+          <div
+            className="rounded-3xl border p-4"
+            style={{ ...previewBorderStyle, backgroundColor: tokens.secondaryBackground }}
+          >
             <div className="space-y-4">
               <div className="space-y-1">
                 <Text
