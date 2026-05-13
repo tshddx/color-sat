@@ -4,7 +4,6 @@ import {
   applyGraphChange,
   applyGraphChanges,
   constraintError,
-  exampleGraph,
   solveGraph,
   solveGraphIncr,
   validateGraph,
@@ -13,6 +12,7 @@ import {
   type Graph,
   type Node,
 } from "./index";
+import { exampleGraph } from "./testing";
 
 const white = { l: 1, c: 0, h: 0 };
 const black = { l: 0, c: 0, h: 0 };

@@ -19,6 +19,41 @@ function contrastEdge(id: string, sourceNodeId: string, targetNodeId: string, va
 }
 
 export function exampleGraph(): Graph {
+  const background = node("node-preview-background", "preview-background", { l: 1, c: 0, h: 0 });
+  const primaryText = node(
+    "node-preview-primary-text",
+    "preview-primary-text",
+    undefined,
+    background.id,
+  );
+  const secondaryText = node(
+    "node-preview-secondary-text",
+    "preview-secondary-text",
+    undefined,
+    background.id,
+  );
+  const divider = node("node-preview-divider", "preview-divider", undefined, background.id);
+  const secondaryBackground = node(
+    "node-preview-secondary-background",
+    "preview-secondary-background",
+    {
+      l: 0.94,
+      c: 0,
+      h: 0,
+    },
+  );
+
+  return {
+    nodes: [background, primaryText, secondaryText, divider, secondaryBackground],
+    edges: [
+      contrastEdge("edge-preview-background-primary-text", background.id, primaryText.id, 90),
+      contrastEdge("edge-preview-background-secondary-text", background.id, secondaryText.id, 60),
+      contrastEdge("edge-preview-background-divider", background.id, divider.id, 25),
+    ],
+  };
+}
+
+export function testingExampleGraph(): Graph {
   const bgPrimary = node("node-bg-primary", "bg-primary", { l: 1, c: 0, h: 0 });
   const textPrimary = node("node-text-primary", "text-primary", undefined, bgPrimary.id);
   const textSecondary = node("node-text-secondary", "text-secondary", undefined, bgPrimary.id);

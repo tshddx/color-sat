@@ -1,7 +1,8 @@
 "use client";
 
 import { Result } from "better-result";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { PreviewWidget, type PreviewWidgetTokens } from "../color-sat-app";
 import { Badge } from "../catalyst/typescript/badge";
 import { Button } from "../catalyst/typescript/button";
 import {
@@ -42,6 +43,20 @@ const DARK_TEXT = "!text-gray-950 dark:!text-gray-950";
 const MUTED_TEXT = "!text-gray-500 dark:!text-gray-500";
 const PLAIN_BUTTON = "!text-gray-700 dark:!text-gray-700 hover:!bg-gray-950/5";
 const OUTLINE_BUTTON = "!text-gray-950 dark:!text-gray-950";
+const DEFAULT_PREVIEW_TOKENS: PreviewWidgetTokens = {
+  background: "oklch(1 0 0)",
+  divider: "oklch(0.7 0 0)",
+  primaryText: "oklch(0.18 0 0)",
+  secondaryBackground: "oklch(0.94 0 0)",
+  secondaryText: "oklch(0.45 0 0)",
+};
+const PREVIEW_TOKEN_NAMES = {
+  background: "preview-background",
+  divider: "preview-divider",
+  primaryText: "preview-primary-text",
+  secondaryBackground: "preview-secondary-background",
+  secondaryText: "preview-secondary-text",
+} as const;
 
 type StoredSolverState = {
   graph: Graph;
@@ -152,6 +167,34 @@ function ColorSwatch({ color }: { color: OklchColor | undefined }) {
   );
 }
 
+function buildPreviewTokens(solvedGraph: SolvedGraph | undefined): PreviewWidgetTokens {
+  if (!solvedGraph) {
+    return DEFAULT_PREVIEW_TOKENS;
+  }
+
+  const colorsByName = new Map(
+    solvedGraph.nodes.flatMap((solutionNode) => {
+      const graphNode = solvedGraph.graph.nodes.find((node) => node.id === solutionNode.id);
+      return graphNode && solutionNode.solvedColor
+        ? ([[graphNode.displayName, toCssOklch(solutionNode.solvedColor)]] as const)
+        : [];
+    }),
+  );
+
+  return {
+    background:
+      colorsByName.get(PREVIEW_TOKEN_NAMES.background) ?? DEFAULT_PREVIEW_TOKENS.background,
+    divider: colorsByName.get(PREVIEW_TOKEN_NAMES.divider) ?? DEFAULT_PREVIEW_TOKENS.divider,
+    primaryText:
+      colorsByName.get(PREVIEW_TOKEN_NAMES.primaryText) ?? DEFAULT_PREVIEW_TOKENS.primaryText,
+    secondaryBackground:
+      colorsByName.get(PREVIEW_TOKEN_NAMES.secondaryBackground) ??
+      DEFAULT_PREVIEW_TOKENS.secondaryBackground,
+    secondaryText:
+      colorsByName.get(PREVIEW_TOKEN_NAMES.secondaryText) ?? DEFAULT_PREVIEW_TOKENS.secondaryText,
+  };
+}
+
 function loadStoredState(): {
   state: StoredSolverState;
   warning?: string;
@@ -204,6 +247,7 @@ function loadStoredState(): {
 
 export function SolverApp() {
   const initial = useMemo(loadStoredState, []);
+  const shellRef = useRef<HTMLDivElement>(null);
   const [graph, setGraph] = useState(initial.state.graph);
   const [selectedNodeId, setSelectedNodeId] = useState(initial.state.selectedNodeId);
   const [solvedGraph, setSolvedGraph] = useState<SolvedGraph | undefined>(initial.solvedGraph);
@@ -212,8 +256,10 @@ export function SolverApp() {
   const [currentError, setCurrentError] = useState<SolveError | undefined>(initial.error);
   const [storageWarning, setStorageWarning] = useState(initial.warning);
   const [addEdgeTargetNodeId, setAddEdgeTargetNodeId] = useState<string | undefined>();
+  const [previewPaneWidth, setPreviewPaneWidth] = useState(36);
 
   const selectedNode = graph.nodes.find((node) => node.id === selectedNodeId);
+  const previewTokens = buildPreviewTokens(solvedGraph);
 
   useEffect(() => {
     window.localStorage.setItem(
@@ -351,92 +397,147 @@ export function SolverApp() {
     setAddEdgeTargetNodeId(undefined);
   }
 
+  function resizePreviewPane(clientX: number) {
+    const rect = shellRef.current?.getBoundingClientRect();
+
+    if (!rect) {
+      return;
+    }
+
+    const rightWidth = rect.right - clientX;
+    const nextWidth = (rightWidth / rect.width) * 100;
+    setPreviewPaneWidth(Math.min(55, Math.max(24, nextWidth)));
+  }
+
+  function startPreviewPaneResize(event: React.PointerEvent<HTMLButtonElement>) {
+    event.preventDefault();
+    resizePreviewPane(event.clientX);
+
+    function handlePointerMove(moveEvent: PointerEvent) {
+      resizePreviewPane(moveEvent.clientX);
+    }
+
+    function stopResize() {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", stopResize);
+    }
+
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", stopResize, { once: true });
+  }
+
   return (
     <main className="min-h-dvh bg-gray-50 p-4 text-gray-950 sm:p-6 lg:p-8 [&_h1]:dark:!text-gray-950 [&_h2]:dark:!text-gray-950 [&_input]:dark:!text-gray-950 [&_p]:dark:!text-gray-500 [&_select]:dark:!text-gray-950">
-      <div className="mx-auto flex max-w-7xl flex-col gap-5">
-        <header className="flex flex-col gap-4 rounded-2xl border border-gray-950/10 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <Heading className={DARK_TEXT}>ColorSAT Solver</Heading>
-            <Text className={`mt-1 ${MUTED_TEXT}`}>
-              Build a color-token graph, solve constraints, and inspect derived OKLCH values.
-            </Text>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            {hasSolvedBaseline ? (
-              <Badge color={solutionStale ? "amber" : "green"}>
-                {solutionStale ? "Stale solution" : "Solved"}
-              </Badge>
-            ) : (
-              <Badge color="gray">Not solved</Badge>
-            )}
-            <Button className={OUTLINE_BUTTON} outline onClick={addRootToken}>
-              Add root token
-            </Button>
-            <Button color="dark" onClick={solveCurrentGraph}>
-              {hasSolvedBaseline ? "Re-solve" : "Solve"}
-            </Button>
-          </div>
-        </header>
-
-        {storageWarning && <InlineAlert variant="warning">{storageWarning}</InlineAlert>}
-        {solutionStale && (
-          <InlineAlert variant="warning">
-            The last good solution is still visible, but recent edits could not be solved
-            incrementally. Re-solve after fixing the issue.
-          </InlineAlert>
-        )}
-        {currentError && (
-          <InlineAlert title="Solver error" variant="error">
-            {formatSolveError(currentError)}
-          </InlineAlert>
-        )}
-
-        {graph.nodes.length === 0 ? (
-          <section className="rounded-3xl border border-dashed border-gray-300 bg-white p-10 text-center shadow-sm">
-            <Subheading className={DARK_TEXT}>No tokens yet</Subheading>
-            <Text className={`mx-auto mt-2 max-w-lg ${MUTED_TEXT}`}>
-              Create the first token from scratch or load the example from the product brief.
-            </Text>
-            <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
-              <Button color="dark" onClick={addRootToken}>
-                Create first token
+      <div
+        ref={shellRef}
+        className="flex w-full flex-col gap-5 lg:min-h-[calc(100dvh-4rem)] lg:flex-row lg:gap-0"
+        style={
+          {
+            "--solver-left-width": `${100 - previewPaneWidth}%`,
+            "--solver-preview-width": `${previewPaneWidth}%`,
+          } as React.CSSProperties
+        }
+      >
+        <div className="min-w-0 flex flex-col gap-5 lg:basis-[calc(var(--solver-left-width)-0.75rem)] lg:pr-5">
+          <header className="flex flex-col gap-4 rounded-2xl border border-gray-950/10 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <Heading className={DARK_TEXT}>ColorSAT Solver</Heading>
+              <Text className={`mt-1 ${MUTED_TEXT}`}>
+                Build a color-token graph, solve constraints, and inspect derived OKLCH values.
+              </Text>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {hasSolvedBaseline ? (
+                <Badge color={solutionStale ? "amber" : "green"}>
+                  {solutionStale ? "Stale solution" : "Solved"}
+                </Badge>
+              ) : (
+                <Badge color="gray">Not solved</Badge>
+              )}
+              <Button className={OUTLINE_BUTTON} outline onClick={addRootToken}>
+                Add root token
               </Button>
-              <Button color="amber" onClick={loadExample}>
-                Load example
+              <Button color="dark" onClick={solveCurrentGraph}>
+                {hasSolvedBaseline ? "Re-solve" : "Solve"}
               </Button>
             </div>
-          </section>
-        ) : (
-          <div className="grid gap-5 lg:grid-cols-[minmax(18rem,22rem)_minmax(0,1fr)]">
-            <TokenOutline
-              graph={graph}
-              selectedNodeId={selectedNodeId}
-              solvedGraph={solvedGraph}
-              onAddChild={addChild}
-              onAddEdge={(nodeId) => setAddEdgeTargetNodeId(nodeId)}
-              onDelete={deleteNode}
-              onSelect={setSelectedNodeId}
-            />
-            <TokenSidebar
-              graph={graph}
-              node={selectedNode}
-              solvedGraph={solvedGraph}
-              solutionStale={solutionStale}
-              onUpdateNode={(node) => commitChange({ type: "update-node", node }, node.id)}
-              onDeleteEdge={(edgeId) => commitChange({ type: "remove-edge", edgeId })}
-              onUpdateEdge={(edge) => commitChange({ type: "update-edge", edge })}
-            />
-          </div>
-        )}
+          </header>
 
-        <footer className="flex flex-col gap-3 rounded-2xl border border-gray-950/10 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-          <Text className={MUTED_TEXT}>
-            Clear saved browser data and reset this solver session.
-          </Text>
-          <Button className={OUTLINE_BUTTON} outline onClick={resetAllState}>
-            Reset local state
-          </Button>
-        </footer>
+          {storageWarning && <InlineAlert variant="warning">{storageWarning}</InlineAlert>}
+          {solutionStale && (
+            <InlineAlert variant="warning">
+              The last good solution is still visible, but recent edits could not be solved
+              incrementally. Re-solve after fixing the issue.
+            </InlineAlert>
+          )}
+          {currentError && (
+            <InlineAlert title="Solver error" variant="error">
+              {formatSolveError(currentError)}
+            </InlineAlert>
+          )}
+
+          {graph.nodes.length === 0 ? (
+            <section className="rounded-3xl border border-dashed border-gray-300 bg-white p-10 text-center shadow-sm">
+              <Subheading className={DARK_TEXT}>No tokens yet</Subheading>
+              <Text className={`mx-auto mt-2 max-w-lg ${MUTED_TEXT}`}>
+                Create the first token from scratch or load the example from the product brief.
+              </Text>
+              <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
+                <Button color="dark" onClick={addRootToken}>
+                  Create first token
+                </Button>
+                <Button color="amber" onClick={loadExample}>
+                  Load example
+                </Button>
+              </div>
+            </section>
+          ) : (
+            <div className="grid gap-5 lg:grid-cols-[minmax(18rem,22rem)_minmax(0,1fr)]">
+              <TokenOutline
+                graph={graph}
+                selectedNodeId={selectedNodeId}
+                solvedGraph={solvedGraph}
+                onAddChild={addChild}
+                onAddEdge={(nodeId) => setAddEdgeTargetNodeId(nodeId)}
+                onDelete={deleteNode}
+                onSelect={setSelectedNodeId}
+              />
+              <TokenSidebar
+                graph={graph}
+                node={selectedNode}
+                solvedGraph={solvedGraph}
+                solutionStale={solutionStale}
+                onUpdateNode={(node) => commitChange({ type: "update-node", node }, node.id)}
+                onDeleteEdge={(edgeId) => commitChange({ type: "remove-edge", edgeId })}
+                onUpdateEdge={(edge) => commitChange({ type: "update-edge", edge })}
+              />
+            </div>
+          )}
+
+          <footer className="flex flex-col gap-3 rounded-2xl border border-gray-950/10 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+            <Text className={MUTED_TEXT}>
+              Clear saved browser data and reset this solver session.
+            </Text>
+            <Button className={OUTLINE_BUTTON} outline onClick={resetAllState}>
+              Reset local state
+            </Button>
+          </footer>
+        </div>
+
+        <button
+          aria-label="Resize preview pane"
+          className="group hidden w-5 shrink-0 cursor-col-resize touch-none items-stretch justify-center lg:flex"
+          type="button"
+          onPointerDown={startPreviewPaneResize}
+        >
+          <span className="h-full w-px bg-gray-950/10 group-hover:bg-gray-950/25" />
+        </button>
+
+        <PreviewPane
+          hasSolvedBaseline={hasSolvedBaseline}
+          solutionStale={solutionStale}
+          tokens={previewTokens}
+        />
       </div>
 
       <AddEdgeDialog
@@ -449,6 +550,38 @@ export function SolverApp() {
         }}
       />
     </main>
+  );
+}
+
+function PreviewPane({
+  hasSolvedBaseline,
+  solutionStale,
+  tokens,
+}: {
+  hasSolvedBaseline: boolean;
+  solutionStale: boolean;
+  tokens: PreviewWidgetTokens;
+}) {
+  return (
+    <aside className="min-w-0 lg:sticky lg:top-8 lg:h-[calc(100dvh-4rem)] lg:basis-[calc(var(--solver-preview-width)-0.75rem)] lg:overflow-hidden">
+      <section className="flex h-full min-h-[32rem] flex-col overflow-hidden rounded-3xl border border-gray-950/10 bg-white shadow-sm">
+        <div className="flex items-start justify-between gap-4 border-b border-gray-950/10 p-4">
+          <div>
+            <Subheading className={DARK_TEXT}>Preview Pane</Subheading>
+            <Text className={`mt-1 ${MUTED_TEXT}`}>
+              Renders solved preview tokens against production-like UI.
+            </Text>
+          </div>
+          <Badge color={hasSolvedBaseline && !solutionStale ? "green" : "gray"}>
+            {hasSolvedBaseline ? (solutionStale ? "Stale" : "Live") : "Fallback"}
+          </Badge>
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-auto bg-gray-50 p-4">
+          <PreviewWidget tokens={tokens} />
+        </div>
+      </section>
+    </aside>
   );
 }
 

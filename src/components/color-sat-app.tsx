@@ -260,6 +260,279 @@ function PreviewButton({
   );
 }
 
+export interface PreviewWidgetTokens {
+  background: string;
+  divider: string;
+  primaryText: string;
+  secondaryBackground: string;
+  secondaryText: string;
+}
+
+export function PreviewWidget({
+  footer,
+  tokens,
+}: {
+  footer?: ReactNode;
+  tokens: PreviewWidgetTokens;
+}) {
+  const previewBorderStyle = { borderColor: tokens.divider } as CSSProperties;
+  const previewChipStyle = {
+    backgroundColor: "transparent",
+    borderColor: tokens.divider,
+    color: tokens.secondaryText,
+  } as CSSProperties;
+  const previewFooterStyle = { borderColor: tokens.divider } as CSSProperties;
+
+  return (
+    <article className="overflow-hidden rounded-2xl border border-gray-950/10 bg-white">
+      <div className="space-y-8 p-6" style={{ backgroundColor: tokens.background }}>
+        <div className="space-y-4">
+          <Text
+            className="font-mono text-sm uppercase tracking-[0.18em]"
+            style={{ color: tokens.secondaryText }}
+          >
+            Flight-critical production cell 07
+          </Text>
+          <Heading
+            className="max-w-[28ch] text-balance text-2xl tracking-tight"
+            level={2}
+            style={{ color: tokens.primaryText }}
+          >
+            Titanium airframe brackets cleared final metrology.
+          </Heading>
+          <Text className="max-w-[62ch] text-pretty" style={{ color: tokens.primaryText }}>
+            Process capability held within tolerance across five-axis finishing and fluorescent
+            penetrant inspection, supporting on-time shipment into satellite propulsion assembly.
+          </Text>
+        </div>
+
+        <ul className="flex flex-wrap gap-2" role="list">
+          {["NADCAP Approved", "AS9100 Rev D", "Lot Traceable", "ITAR Controlled"].map((label) => (
+            <li key={label}>
+              <Badge
+                className="rounded-full border bg-transparent px-2.5 py-1 font-medium"
+                style={previewChipStyle}
+              >
+                {label}
+              </Badge>
+            </li>
+          ))}
+        </ul>
+
+        <div className="grid gap-3 sm:grid-cols-3">
+          {[
+            ["Yield", "99.2%"],
+            ["NCRs", "0 Open"],
+            ["Dispatch", "18:40 UTC"],
+          ].map(([label, value]) => (
+            <div className="rounded-2xl border px-4 py-3" key={label} style={previewBorderStyle}>
+              <Text
+                className="font-mono text-sm uppercase tracking-[0.16em]"
+                style={{ color: tokens.secondaryText }}
+              >
+                {label}
+              </Text>
+              <Subheading
+                className="mt-1 text-lg tabular-nums"
+                style={{ color: tokens.primaryText }}
+              >
+                {value}
+              </Subheading>
+            </div>
+          ))}
+        </div>
+
+        <div className="rounded-3xl border p-4" style={previewBorderStyle}>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div className="space-y-3">
+              <Text
+                className="font-mono text-sm uppercase tracking-[0.16em]"
+                style={{ color: tokens.secondaryText }}
+              >
+                Work order summary
+              </Text>
+              <Subheading className="max-w-[30ch] text-lg" style={{ color: tokens.primaryText }}>
+                WF-2187 ready for final packaging and cert review.
+              </Subheading>
+              <Text className="max-w-[56ch] text-pretty" style={{ color: tokens.primaryText }}>
+                Source inspection signoff, serialization audit, and dimensional records are complete
+                for this release lot.
+              </Text>
+            </div>
+            <PreviewBadge borderColor={tokens.divider} textColor={tokens.secondaryText}>
+              Ready to ship
+            </PreviewBadge>
+          </div>
+        </div>
+
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
+          <div className="rounded-3xl border p-4" style={previewBorderStyle}>
+            <div className="space-y-4">
+              <div className="space-y-1">
+                <Text
+                  className="font-mono text-sm uppercase tracking-[0.16em]"
+                  style={{ color: tokens.secondaryText }}
+                >
+                  Traveler inputs
+                </Text>
+                <Subheading className="text-base" style={{ color: tokens.primaryText }}>
+                  Final inspection handoff
+                </Subheading>
+              </div>
+
+              <FieldGroup className="space-y-4">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {[
+                    {
+                      ariaLabel: "Work order",
+                      label: "Work order",
+                      name: "work-order",
+                      placeholder: "WF-2187-A",
+                      value: "WF-2187-A",
+                    },
+                    {
+                      ariaLabel: "Inspector",
+                      label: "Inspector",
+                      name: "inspector",
+                      placeholder: "Assign inspector",
+                      value: "",
+                    },
+                    {
+                      ariaLabel: "Route step",
+                      label: "Route step",
+                      name: "route-step",
+                      placeholder: "170 - Final QA",
+                      value: "170 - Final QA",
+                    },
+                    {
+                      ariaLabel: "Packaging",
+                      label: "Packaging",
+                      name: "packaging",
+                      placeholder: "Cleanroom bag + foam",
+                      value: "",
+                    },
+                  ].map(({ ariaLabel, label, name, placeholder, value }) => (
+                    <Field className="space-y-2" key={name}>
+                      <Label
+                        className="font-mono text-sm uppercase tracking-[0.16em]"
+                        style={{ color: tokens.secondaryText }}
+                      >
+                        {label}
+                      </Label>
+                      <PreviewInput
+                        ariaLabel={ariaLabel}
+                        borderColor={tokens.divider}
+                        name={name}
+                        placeholder={placeholder}
+                        placeholderColor={tokens.secondaryText}
+                        textColor={tokens.primaryText}
+                        value={value}
+                      />
+                    </Field>
+                  ))}
+                </div>
+
+                <Field className="space-y-2">
+                  <Label
+                    className="font-mono text-sm uppercase tracking-[0.16em]"
+                    style={{ color: tokens.secondaryText }}
+                  >
+                    Notes
+                  </Label>
+                  <PreviewTextarea
+                    ariaLabel="Notes"
+                    borderColor={tokens.divider}
+                    name="notes"
+                    placeholderColor={tokens.secondaryText}
+                    textColor={tokens.secondaryText}
+                    value="Verify serialized labels against packing sheet, include FAIR reference, and hold for customer source release before dock transfer."
+                  />
+                </Field>
+              </FieldGroup>
+
+              <div className="flex flex-wrap gap-3">
+                <PreviewButton
+                  backgroundColor={tokens.secondaryBackground}
+                  textColor={tokens.primaryText}
+                >
+                  Hold for review
+                </PreviewButton>
+                <PreviewButton
+                  backgroundColor={tokens.secondaryBackground}
+                  textColor={tokens.primaryText}
+                >
+                  Release to shipping
+                </PreviewButton>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-3xl border p-4" style={previewBorderStyle}>
+            <div className="space-y-4">
+              <div className="space-y-1">
+                <Text
+                  className="font-mono text-sm uppercase tracking-[0.16em]"
+                  style={{ color: tokens.secondaryText }}
+                >
+                  Lot snapshot
+                </Text>
+                <Subheading className="text-base" style={{ color: tokens.primaryText }}>
+                  Recent release queue
+                </Subheading>
+              </div>
+
+              <div className="overflow-hidden rounded-2xl border" style={previewBorderStyle}>
+                <Table className="[--gutter:--spacing(3)]" dense>
+                  <TableHead style={{ color: tokens.secondaryText }}>
+                    <TableRow>
+                      {["Lot", "Status", "Ship"].map((heading) => (
+                        <TableHeader
+                          className="whitespace-nowrap font-medium"
+                          key={heading}
+                          style={previewFooterStyle}
+                        >
+                          {heading}
+                        </TableHeader>
+                      ))}
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {[
+                      ["WF-2187-A", "Ready", "Today"],
+                      ["WF-2191-C", "Review", "Hold"],
+                      ["WF-2204-B", "Pack", "17:10"],
+                    ].map(([lot, status, ship]) => (
+                      <TableRow key={lot}>
+                        <TableCell
+                          className="font-medium"
+                          style={{ ...previewFooterStyle, color: tokens.primaryText }}
+                        >
+                          {lot}
+                        </TableCell>
+                        <TableCell style={{ ...previewFooterStyle, color: tokens.secondaryText }}>
+                          {status}
+                        </TableCell>
+                        <TableCell
+                          className="tabular-nums"
+                          style={{ ...previewFooterStyle, color: tokens.secondaryText }}
+                        >
+                          {ship}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {footer ?? null}
+    </article>
+  );
+}
+
 function TextColorSpecCardLedger({ result, target }: TextColorSpecCardProps) {
   return (
     <section className="rounded-xl border border-gray-950/10 bg-white px-3 py-2.5">
@@ -469,18 +742,13 @@ export function ColorSatApp() {
 
           const liveBackground = liveBackgroundsById.get(background.id) ?? background;
           const isDeferred = liveBackground.color !== background.color;
-          const primaryText = palette.samples.primaryText;
-          const secondaryText = palette.samples.secondaryText;
-          const placeholderText = palette.samples.placeholderText;
-          const divider = palette.samples.divider;
-          const secondaryBackground = palette.samples.secondaryBackground;
-          const previewBorderStyle = { borderColor: divider.hex } as CSSProperties;
-          const previewChipStyle = {
-            backgroundColor: "transparent",
-            borderColor: divider.hex,
-            color: secondaryText.hex,
-          } as CSSProperties;
-          const previewFooterStyle = { borderColor: divider.hex } as CSSProperties;
+          const previewTokens: PreviewWidgetTokens = {
+            background: palette.backgroundHex,
+            divider: palette.samples.divider.hex,
+            primaryText: palette.samples.primaryText.hex,
+            secondaryBackground: palette.samples.secondaryBackground.hex,
+            secondaryText: palette.samples.secondaryText.hex,
+          };
 
           return (
             <section
@@ -540,306 +808,30 @@ export function ColorSatApp() {
                 <Divider />
 
                 <div className="grid gap-6 xl:grid-cols-[minmax(0,3fr)_minmax(18rem,1fr)]">
-                  <article className="overflow-hidden rounded-2xl border border-gray-950/10">
-                    <div
-                      className="space-y-8 p-6"
-                      style={{ backgroundColor: palette.backgroundHex }}
-                    >
-                      <div className="space-y-4">
-                        <Text
-                          className="font-mono text-sm uppercase tracking-[0.18em]"
-                          style={{ color: secondaryText.hex }}
-                        >
-                          Flight-critical production cell 07
-                        </Text>
-                        <Heading
-                          className="max-w-[28ch] text-balance text-2xl tracking-tight"
-                          level={2}
-                          style={{ color: primaryText.hex }}
-                        >
-                          Titanium airframe brackets cleared final metrology.
-                        </Heading>
-                        <Text
-                          className="max-w-[62ch] text-pretty"
-                          style={{ color: primaryText.hex }}
-                        >
-                          Process capability held within tolerance across five-axis finishing and
-                          fluorescent penetrant inspection, supporting on-time shipment into
-                          satellite propulsion assembly.
-                        </Text>
-                      </div>
-
-                      <ul className="flex flex-wrap gap-2" role="list">
+                  <PreviewWidget
+                    footer={
+                      <div className="grid gap-2 border-t border-gray-950/10 bg-white p-4">
                         {[
-                          "NADCAP Approved",
-                          "AS9100 Rev D",
-                          "Lot Traceable",
-                          "ITAR Controlled",
-                        ].map((label) => (
-                          <li key={label}>
-                            <Badge
-                              className="rounded-full border bg-transparent px-2.5 py-1 font-medium"
-                              style={previewChipStyle}
-                            >
-                              {label}
-                            </Badge>
-                          </li>
-                        ))}
-                      </ul>
-
-                      <div className="grid gap-3 sm:grid-cols-3">
-                        {[
-                          ["Yield", "99.2%"],
-                          ["NCRs", "0 Open"],
-                          ["Dispatch", "18:40 UTC"],
-                        ].map(([label, value]) => (
-                          <div
-                            className="rounded-2xl border px-4 py-3"
-                            key={label}
-                            style={previewBorderStyle}
-                          >
-                            <Text
-                              className="font-mono text-sm uppercase tracking-[0.16em]"
-                              style={{ color: secondaryText.hex }}
-                            >
-                              {label}
+                          [
+                            "Composite preview",
+                            "Uses background, divider, secondaryBackground, secondaryText, and primaryText.",
+                          ],
+                          ["Primary text", "Headings and body copy."],
+                          ["Secondary text", "Overlines and supporting UI detail."],
+                          ["Divider", "Chips, table rows, and input borders."],
+                          ["Secondary background", "Filled action buttons."],
+                        ].map(([label, description]) => (
+                          <div className="flex items-start justify-between gap-4" key={label}>
+                            <Text className="text-sm text-gray-600">{label}</Text>
+                            <Text className="max-w-[32ch] text-right text-sm text-gray-600">
+                              {description}
                             </Text>
-                            <Subheading
-                              className="mt-1 text-lg tabular-nums"
-                              style={{ color: primaryText.hex }}
-                            >
-                              {value}
-                            </Subheading>
                           </div>
                         ))}
                       </div>
-
-                      <div className="rounded-3xl border p-4" style={previewBorderStyle}>
-                        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                          <div className="space-y-3">
-                            <Text
-                              className="font-mono text-sm uppercase tracking-[0.16em]"
-                              style={{ color: secondaryText.hex }}
-                            >
-                              Work order summary
-                            </Text>
-                            <Subheading
-                              className="max-w-[30ch] text-lg"
-                              style={{ color: primaryText.hex }}
-                            >
-                              WF-2187 ready for final packaging and cert review.
-                            </Subheading>
-                            <Text
-                              className="max-w-[56ch] text-pretty"
-                              style={{ color: primaryText.hex }}
-                            >
-                              Source inspection signoff, serialization audit, and dimensional
-                              records are complete for this release lot.
-                            </Text>
-                          </div>
-                          <PreviewBadge borderColor={divider.hex} textColor={secondaryText.hex}>
-                            Ready to ship
-                          </PreviewBadge>
-                        </div>
-                      </div>
-
-                      <div className="grid gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
-                        <div className="rounded-3xl border p-4" style={previewBorderStyle}>
-                          <div className="space-y-4">
-                            <div className="space-y-1">
-                              <Text
-                                className="font-mono text-sm uppercase tracking-[0.16em]"
-                                style={{ color: secondaryText.hex }}
-                              >
-                                Traveler inputs
-                              </Text>
-                              <Subheading className="text-base" style={{ color: primaryText.hex }}>
-                                Final inspection handoff
-                              </Subheading>
-                            </div>
-
-                            <FieldGroup className="space-y-4">
-                              <div className="grid gap-3 sm:grid-cols-2">
-                                {[
-                                  {
-                                    ariaLabel: "Work order",
-                                    label: "Work order",
-                                    name: "work-order",
-                                    placeholder: "WF-2187-A",
-                                    value: "WF-2187-A",
-                                  },
-                                  {
-                                    ariaLabel: "Inspector",
-                                    label: "Inspector",
-                                    name: "inspector",
-                                    placeholder: "Assign inspector",
-                                    value: "",
-                                  },
-                                  {
-                                    ariaLabel: "Route step",
-                                    label: "Route step",
-                                    name: "route-step",
-                                    placeholder: "170 - Final QA",
-                                    value: "170 - Final QA",
-                                  },
-                                  {
-                                    ariaLabel: "Packaging",
-                                    label: "Packaging",
-                                    name: "packaging",
-                                    placeholder: "Cleanroom bag + foam",
-                                    value: "",
-                                  },
-                                ].map(({ ariaLabel, label, name, placeholder, value }) => (
-                                  <Field className="space-y-2" key={name}>
-                                    <Label
-                                      className="font-mono text-sm uppercase tracking-[0.16em]"
-                                      style={{ color: secondaryText.hex }}
-                                    >
-                                      {label}
-                                    </Label>
-                                    <PreviewInput
-                                      ariaLabel={ariaLabel}
-                                      borderColor={divider.hex}
-                                      name={name}
-                                      placeholder={placeholder}
-                                      placeholderColor={placeholderText.hex}
-                                      textColor={primaryText.hex}
-                                      value={value}
-                                    />
-                                  </Field>
-                                ))}
-                              </div>
-
-                              <Field className="space-y-2">
-                                <Label
-                                  className="font-mono text-sm uppercase tracking-[0.16em]"
-                                  style={{ color: secondaryText.hex }}
-                                >
-                                  Notes
-                                </Label>
-                                <PreviewTextarea
-                                  ariaLabel="Notes"
-                                  borderColor={divider.hex}
-                                  name="notes"
-                                  placeholderColor={placeholderText.hex}
-                                  textColor={secondaryText.hex}
-                                  value="Verify serialized labels against packing sheet, include FAIR reference, and hold for customer source release before dock transfer."
-                                />
-                              </Field>
-                            </FieldGroup>
-
-                            <div className="flex flex-wrap gap-3">
-                              <PreviewButton
-                                backgroundColor={secondaryBackground.hex}
-                                textColor={primaryText.hex}
-                              >
-                                Hold for review
-                              </PreviewButton>
-                              <PreviewButton
-                                backgroundColor={secondaryBackground.hex}
-                                textColor={primaryText.hex}
-                              >
-                                Release to shipping
-                              </PreviewButton>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="rounded-3xl border p-4" style={previewBorderStyle}>
-                          <div className="space-y-4">
-                            <div className="space-y-1">
-                              <Text
-                                className="font-mono text-sm uppercase tracking-[0.16em]"
-                                style={{ color: secondaryText.hex }}
-                              >
-                                Lot snapshot
-                              </Text>
-                              <Subheading className="text-base" style={{ color: primaryText.hex }}>
-                                Recent release queue
-                              </Subheading>
-                            </div>
-
-                            <div
-                              className="overflow-hidden rounded-2xl border"
-                              style={previewBorderStyle}
-                            >
-                              <Table className="[--gutter:--spacing(3)]" dense>
-                                <TableHead style={{ color: secondaryText.hex }}>
-                                  <TableRow>
-                                    <TableHeader
-                                      className="whitespace-nowrap font-medium"
-                                      style={previewFooterStyle}
-                                    >
-                                      Lot
-                                    </TableHeader>
-                                    <TableHeader
-                                      className="whitespace-nowrap font-medium"
-                                      style={previewFooterStyle}
-                                    >
-                                      Status
-                                    </TableHeader>
-                                    <TableHeader
-                                      className="whitespace-nowrap font-medium"
-                                      style={previewFooterStyle}
-                                    >
-                                      Ship
-                                    </TableHeader>
-                                  </TableRow>
-                                </TableHead>
-                                <TableBody>
-                                  {[
-                                    ["WF-2187-A", "Ready", "Today"],
-                                    ["WF-2191-C", "Review", "Hold"],
-                                    ["WF-2204-B", "Pack", "17:10"],
-                                  ].map(([lot, status, ship]) => (
-                                    <TableRow key={lot}>
-                                      <TableCell
-                                        className="font-medium"
-                                        style={{ ...previewFooterStyle, color: primaryText.hex }}
-                                      >
-                                        {lot}
-                                      </TableCell>
-                                      <TableCell
-                                        style={{ ...previewFooterStyle, color: secondaryText.hex }}
-                                      >
-                                        {status}
-                                      </TableCell>
-                                      <TableCell
-                                        className="tabular-nums"
-                                        style={{ ...previewFooterStyle, color: secondaryText.hex }}
-                                      >
-                                        {ship}
-                                      </TableCell>
-                                    </TableRow>
-                                  ))}
-                                </TableBody>
-                              </Table>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="grid gap-2 border-t border-gray-950/10 bg-white p-4">
-                      {[
-                        [
-                          "Composite preview",
-                          "Uses divider, secondaryBackground, secondaryText, and primaryText.",
-                        ],
-                        ["Primary text", "Headings and body copy."],
-                        ["Secondary text", "Overlines and supporting UI detail."],
-                        ["Divider", "Chips, table rows, and input borders."],
-                        ["Secondary background", "Filled action buttons."],
-                      ].map(([label, description]) => (
-                        <div className="flex items-start justify-between gap-4" key={label}>
-                          <Text className="text-sm text-gray-600">{label}</Text>
-                          <Text className="max-w-[32ch] text-right text-sm text-gray-600">
-                            {description}
-                          </Text>
-                        </div>
-                      ))}
-                    </div>
-                  </article>
+                    }
+                    tokens={previewTokens}
+                  />
 
                   <article className="overflow-hidden rounded-2xl border border-gray-950/10 bg-white">
                     <div className="p-4">
