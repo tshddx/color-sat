@@ -1149,7 +1149,7 @@ function OklchFields({
           <Input
             type="number"
             min="0"
-            step="0.05"
+            step="0.01"
             value={color.c}
             onChange={(event) =>
               onChange({ ...color, c: numberValue(event.target.value, color.c) })
@@ -1209,6 +1209,10 @@ function stepForConstraintValue(type: Constraint["type"]) {
 
   if (type.endsWith("hue")) {
     return 1;
+  }
+
+  if (type.endsWith("chroma")) {
+    return 0.01;
   }
 
   return 0.05;
