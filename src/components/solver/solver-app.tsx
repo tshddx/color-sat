@@ -2,6 +2,7 @@
 
 import { Result } from "better-result";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { throttle } from "throttle-debounce";
 import { OklchPicker } from "../oklch-picker/oklch-picker";
 import { Badge } from "../catalyst/typescript/badge";
 import { Button } from "../catalyst/typescript/button";
@@ -45,7 +46,7 @@ const MUTED_TEXT = "!text-gray-500 dark:!text-gray-500";
 const PLAIN_BUTTON = "!text-gray-700 dark:!text-gray-700 hover:!bg-gray-950/5";
 const OUTLINE_BUTTON = "!text-gray-950 dark:!text-gray-950";
 const SAFE_TOKEN_NAME_PATTERN = /^[A-Za-z0-9._~-]+$/;
-const PREVIEW_REFRESH_MS = 250;
+const PREVIEW_REFRESH_MS = 500;
 
 type StoredSolverState = {
   graph: Graph;
@@ -244,41 +245,18 @@ function buildPreviewUrl(previewUrl: string, solvedGraph: SolvedGraph | undefine
 
 function useThrottledValue<T>(value: T, intervalMs: number): T {
   const [throttledValue, setThrottledValue] = useState(value);
-  const latestValueRef = useRef(value);
-  const lastUpdateRef = useRef(0);
-  const timeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const setThrottledValueLeading = useMemo(
+    () => throttle(intervalMs, (nextValue: T) => setThrottledValue(nextValue)),
+    [intervalMs],
+  );
 
   useEffect(() => {
-    latestValueRef.current = value;
-    const elapsed = performance.now() - lastUpdateRef.current;
-
-    if (elapsed >= intervalMs) {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-        timeoutRef.current = undefined;
-      }
-      lastUpdateRef.current = performance.now();
-      setThrottledValue(value);
-      return;
-    }
-
-    if (!timeoutRef.current) {
-      timeoutRef.current = setTimeout(() => {
-        timeoutRef.current = undefined;
-        lastUpdateRef.current = performance.now();
-        setThrottledValue(latestValueRef.current);
-      }, intervalMs - elapsed);
-    }
-  }, [intervalMs, value]);
+    setThrottledValueLeading(value);
+  }, [setThrottledValueLeading, value]);
 
   useEffect(() => {
-    return () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-        timeoutRef.current = undefined;
-      }
-    };
-  }, []);
+    return () => setThrottledValueLeading.cancel();
+  }, [setThrottledValueLeading]);
 
   return throttledValue;
 }
