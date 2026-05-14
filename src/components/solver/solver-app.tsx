@@ -2,6 +2,7 @@
 
 import { Result } from "better-result";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { OklchPicker } from "../oklch-picker/oklch-picker";
 import { Badge } from "../catalyst/typescript/badge";
 import { Button } from "../catalyst/typescript/button";
 import {
@@ -20,11 +21,9 @@ import {
   applyGraphChange,
   applyGraphChanges,
   exampleGraph,
-  fromSrgbHex,
   solveGraph,
   solveGraphIncr,
   toCssOklch,
-  toSrgbHex,
   validateGraph,
   type Constraint,
   type Edge,
@@ -46,6 +45,7 @@ const MUTED_TEXT = "!text-gray-500 dark:!text-gray-500";
 const PLAIN_BUTTON = "!text-gray-700 dark:!text-gray-700 hover:!bg-gray-950/5";
 const OUTLINE_BUTTON = "!text-gray-950 dark:!text-gray-950";
 const SAFE_TOKEN_NAME_PATTERN = /^[A-Za-z0-9._~-]+$/;
+const PREVIEW_REFRESH_MS = 250;
 
 type StoredSolverState = {
   graph: Graph;
@@ -240,6 +240,47 @@ function buildPreviewUrl(previewUrl: string, solvedGraph: SolvedGraph | undefine
   }
 
   return { state: "valid" as const, url: url.toString(), tokenCount };
+}
+
+function useThrottledValue<T>(value: T, intervalMs: number): T {
+  const [throttledValue, setThrottledValue] = useState(value);
+  const latestValueRef = useRef(value);
+  const lastUpdateRef = useRef(0);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  useEffect(() => {
+    latestValueRef.current = value;
+    const elapsed = performance.now() - lastUpdateRef.current;
+
+    if (elapsed >= intervalMs) {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = undefined;
+      }
+      lastUpdateRef.current = performance.now();
+      setThrottledValue(value);
+      return;
+    }
+
+    if (!timeoutRef.current) {
+      timeoutRef.current = setTimeout(() => {
+        timeoutRef.current = undefined;
+        lastUpdateRef.current = performance.now();
+        setThrottledValue(latestValueRef.current);
+      }, intervalMs - elapsed);
+    }
+  }, [intervalMs, value]);
+
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = undefined;
+      }
+    };
+  }, []);
+
+  return throttledValue;
 }
 
 function loadStoredState(): {
@@ -639,6 +680,10 @@ function PreviewPane({
   onPreviewUrlChange: (previewUrl: string) => void;
 }) {
   const iframePreview = buildPreviewUrl(previewUrl, solvedGraph);
+  const iframeUrl = useThrottledValue(
+    iframePreview.state === "valid" ? iframePreview.url : undefined,
+    PREVIEW_REFRESH_MS,
+  );
 
   return (
     <aside className="min-w-0 lg:sticky lg:top-8 lg:h-[calc(100dvh-4rem)] lg:basis-[calc(var(--solver-preview-width)-0.75rem)] lg:overflow-hidden">
@@ -671,10 +716,10 @@ function PreviewPane({
         </div>
 
         <div className="min-h-0 flex-1 bg-gray-50 p-4">
-          {iframePreview.state === "valid" ? (
+          {iframePreview.state === "valid" && iframeUrl ? (
             <iframe
               className="h-full min-h-[28rem] w-full rounded-2xl border border-gray-950/10 bg-white"
-              src={iframePreview.url}
+              src={iframeUrl}
               title="External token preview"
             />
           ) : (
@@ -1113,64 +1158,7 @@ function OklchFields({
   color: OklchColor;
   onChange: (color: OklchColor) => void;
 }) {
-  const srgbHex = toSrgbHex(color) ?? "#000000";
-
-  return (
-    <div className="mt-4 space-y-3">
-      <Field label="Color">
-        <input
-          aria-label="Fixed color"
-          className="size-12 cursor-pointer rounded-xl border border-gray-950/10 bg-transparent p-1"
-          type="color"
-          value={srgbHex}
-          onChange={(event) => {
-            const nextColor = fromSrgbHex(event.target.value);
-
-            if (nextColor) {
-              onChange(nextColor);
-            }
-          }}
-        />
-      </Field>
-      <div className="grid gap-3 sm:grid-cols-3">
-        <Field label="L">
-          <Input
-            type="number"
-            min="0"
-            max="1"
-            step="0.05"
-            value={color.l}
-            onChange={(event) =>
-              onChange({ ...color, l: numberValue(event.target.value, color.l) })
-            }
-          />
-        </Field>
-        <Field label="C">
-          <Input
-            type="number"
-            min="0"
-            step="0.01"
-            value={color.c}
-            onChange={(event) =>
-              onChange({ ...color, c: numberValue(event.target.value, color.c) })
-            }
-          />
-        </Field>
-        <Field label="H">
-          <Input
-            type="number"
-            min="0"
-            max="360"
-            step="1"
-            value={color.h}
-            onChange={(event) =>
-              onChange({ ...color, h: numberValue(event.target.value, color.h) })
-            }
-          />
-        </Field>
-      </div>
-    </div>
-  );
+  return <OklchPicker color={color} onChange={onChange} />;
 }
 
 function Field({
