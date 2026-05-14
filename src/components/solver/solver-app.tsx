@@ -2,7 +2,6 @@
 
 import { Result } from "better-result";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { PreviewWidget, type PreviewWidgetTokens } from "../color-sat-app";
 import { Badge } from "../catalyst/typescript/badge";
 import { Button } from "../catalyst/typescript/button";
 import {
@@ -45,25 +44,13 @@ const DARK_TEXT = "!text-gray-950 dark:!text-gray-950";
 const MUTED_TEXT = "!text-gray-500 dark:!text-gray-500";
 const PLAIN_BUTTON = "!text-gray-700 dark:!text-gray-700 hover:!bg-gray-950/5";
 const OUTLINE_BUTTON = "!text-gray-950 dark:!text-gray-950";
-const DEFAULT_PREVIEW_TOKENS: PreviewWidgetTokens = {
-  background: "oklch(1 0 0)",
-  divider: "oklch(0.7 0 0)",
-  primaryText: "oklch(0.18 0 0)",
-  secondaryBackground: "oklch(0.94 0 0)",
-  secondaryText: "oklch(0.45 0 0)",
-};
-const PREVIEW_TOKEN_NAMES = {
-  background: "preview-background",
-  divider: "preview-divider",
-  primaryText: "preview-primary-text",
-  secondaryBackground: "preview-secondary-background",
-  secondaryText: "preview-secondary-text",
-} as const;
+const SAFE_TOKEN_NAME_PATTERN = /^[A-Za-z0-9._~-]+$/;
 
 type StoredSolverState = {
   graph: Graph;
   selectedNodeId: string | undefined;
   hasSolvedBaseline: boolean;
+  previewUrl: string;
 };
 
 type AlertVariant = "error" | "warning" | "info";
@@ -169,32 +156,89 @@ function ColorSwatch({ color }: { color: OklchColor | undefined }) {
   );
 }
 
-function buildPreviewTokens(solvedGraph: SolvedGraph | undefined): PreviewWidgetTokens {
-  if (!solvedGraph) {
-    return DEFAULT_PREVIEW_TOKENS;
+function getTokenNameError(graph: Graph, nodeId: string, displayName: string) {
+  if (!displayName) {
+    return "Token name is required.";
   }
 
-  const colorsByName = new Map(
-    solvedGraph.nodes.flatMap((solutionNode) => {
-      const graphNode = solvedGraph.graph.nodes.find((node) => node.id === solutionNode.id);
-      return graphNode && solutionNode.solvedColor
-        ? ([[graphNode.displayName, toCssOklch(solutionNode.solvedColor)]] as const)
-        : [];
-    }),
-  );
+  if (!SAFE_TOKEN_NAME_PATTERN.test(displayName)) {
+    return "Use only letters, numbers, hyphen, period, underscore, and tilde.";
+  }
 
-  return {
-    background:
-      colorsByName.get(PREVIEW_TOKEN_NAMES.background) ?? DEFAULT_PREVIEW_TOKENS.background,
-    divider: colorsByName.get(PREVIEW_TOKEN_NAMES.divider) ?? DEFAULT_PREVIEW_TOKENS.divider,
-    primaryText:
-      colorsByName.get(PREVIEW_TOKEN_NAMES.primaryText) ?? DEFAULT_PREVIEW_TOKENS.primaryText,
-    secondaryBackground:
-      colorsByName.get(PREVIEW_TOKEN_NAMES.secondaryBackground) ??
-      DEFAULT_PREVIEW_TOKENS.secondaryBackground,
-    secondaryText:
-      colorsByName.get(PREVIEW_TOKEN_NAMES.secondaryText) ?? DEFAULT_PREVIEW_TOKENS.secondaryText,
-  };
+  if (graph.nodes.some((node) => node.id !== nodeId && node.displayName === displayName)) {
+    return "Token names must be unique.";
+  }
+
+  return undefined;
+}
+
+function getGraphTokenNameError(graph: Graph) {
+  const names = new Set<string>();
+
+  for (const node of graph.nodes) {
+    const nameError = getTokenNameError({ ...graph, nodes: [] }, node.id, node.displayName);
+
+    if (nameError) {
+      return nameError;
+    }
+
+    if (names.has(node.displayName)) {
+      return "Token names must be unique.";
+    }
+
+    names.add(node.displayName);
+  }
+
+  return undefined;
+}
+
+function buildPreviewUrl(previewUrl: string, solvedGraph: SolvedGraph | undefined) {
+  const trimmedPreviewUrl = previewUrl.trim();
+
+  if (!trimmedPreviewUrl) {
+    return { state: "empty" as const };
+  }
+
+  let url: URL;
+
+  try {
+    const urlWithProtocol = /^[A-Za-z][A-Za-z0-9+.-]*:/.test(trimmedPreviewUrl)
+      ? trimmedPreviewUrl
+      : `http://${trimmedPreviewUrl}`;
+    url = new URL(urlWithProtocol);
+  } catch {
+    return { state: "invalid" as const };
+  }
+
+  if (url.protocol !== "http:" && url.protocol !== "https:") {
+    return { state: "invalid" as const };
+  }
+
+  if (!solvedGraph) {
+    return { state: "valid" as const, url: url.toString(), tokenCount: 0 };
+  }
+
+  let tokenCount = 0;
+
+  for (const solutionNode of solvedGraph.nodes) {
+    if (!solutionNode.solvedColor) {
+      continue;
+    }
+
+    const graphNode = solvedGraph.graph.nodes.find((node) => node.id === solutionNode.id);
+
+    if (!graphNode) {
+      continue;
+    }
+
+    url.searchParams.set(
+      graphNode.displayName,
+      toCssOklch(solutionNode.solvedColor).replaceAll(" ", "_"),
+    );
+    tokenCount += 1;
+  }
+
+  return { state: "valid" as const, url: url.toString(), tokenCount };
 }
 
 function loadStoredState(): {
@@ -204,10 +248,22 @@ function loadStoredState(): {
   error?: SolveError;
 } {
   if (typeof window === "undefined") {
-    return { state: { graph: EMPTY_GRAPH, selectedNodeId: undefined, hasSolvedBaseline: false } };
+    return {
+      state: {
+        graph: EMPTY_GRAPH,
+        selectedNodeId: undefined,
+        hasSolvedBaseline: false,
+        previewUrl: "",
+      },
+    };
   }
 
-  const fallback = { graph: EMPTY_GRAPH, selectedNodeId: undefined, hasSolvedBaseline: false };
+  const fallback = {
+    graph: EMPTY_GRAPH,
+    selectedNodeId: undefined,
+    hasSolvedBaseline: false,
+    previewUrl: "",
+  };
   const raw = window.localStorage.getItem(STORAGE_KEY);
 
   if (!raw) {
@@ -222,6 +278,10 @@ function loadStoredState(): {
       return { state: fallback, warning: "Saved solver state could not be loaded." };
     }
 
+    if (getGraphTokenNameError(graphResult.value)) {
+      return { state: fallback, warning: "Saved solver state could not be loaded." };
+    }
+
     const selectedNodeId = graphResult.value.nodes.some((node) => node.id === parsed.selectedNodeId)
       ? parsed.selectedNodeId
       : undefined;
@@ -229,6 +289,7 @@ function loadStoredState(): {
       graph: graphResult.value,
       selectedNodeId,
       hasSolvedBaseline: parsed.hasSolvedBaseline === true,
+      previewUrl: typeof parsed.previewUrl === "string" ? parsed.previewUrl : "",
     };
 
     if (!state.hasSolvedBaseline) {
@@ -254,6 +315,7 @@ export function SolverApp() {
   const [selectedNodeId, setSelectedNodeId] = useState(initial.state.selectedNodeId);
   const [solvedGraph, setSolvedGraph] = useState<SolvedGraph | undefined>(initial.solvedGraph);
   const [hasSolvedBaseline, setHasSolvedBaseline] = useState(initial.state.hasSolvedBaseline);
+  const [previewUrl, setPreviewUrl] = useState(initial.state.previewUrl);
   const [solutionStale, setSolutionStale] = useState(false);
   const [currentError, setCurrentError] = useState<SolveError | undefined>(initial.error);
   const [storageWarning, setStorageWarning] = useState(initial.warning);
@@ -261,14 +323,18 @@ export function SolverApp() {
   const [previewPaneWidth, setPreviewPaneWidth] = useState(36);
 
   const selectedNode = graph.nodes.find((node) => node.id === selectedNodeId);
-  const previewTokens = buildPreviewTokens(solvedGraph);
 
   useEffect(() => {
     window.localStorage.setItem(
       STORAGE_KEY,
-      JSON.stringify({ graph, selectedNodeId, hasSolvedBaseline } satisfies StoredSolverState),
+      JSON.stringify({
+        graph,
+        selectedNodeId,
+        hasSolvedBaseline,
+        previewUrl,
+      } satisfies StoredSolverState),
     );
-  }, [graph, selectedNodeId, hasSolvedBaseline]);
+  }, [graph, selectedNodeId, hasSolvedBaseline, previewUrl]);
 
   function acceptGraphChange(
     result: Result<Graph, SolveError>,
@@ -393,6 +459,7 @@ export function SolverApp() {
     setSelectedNodeId(undefined);
     setSolvedGraph(undefined);
     setHasSolvedBaseline(false);
+    setPreviewUrl("");
     setSolutionStale(false);
     setCurrentError(undefined);
     setStorageWarning(undefined);
@@ -537,8 +604,10 @@ export function SolverApp() {
 
         <PreviewPane
           hasSolvedBaseline={hasSolvedBaseline}
+          previewUrl={previewUrl}
           solutionStale={solutionStale}
-          tokens={previewTokens}
+          solvedGraph={solvedGraph}
+          onPreviewUrlChange={setPreviewUrl}
         />
       </div>
 
@@ -557,30 +626,65 @@ export function SolverApp() {
 
 function PreviewPane({
   hasSolvedBaseline,
+  previewUrl,
   solutionStale,
-  tokens,
+  solvedGraph,
+  onPreviewUrlChange,
 }: {
   hasSolvedBaseline: boolean;
+  previewUrl: string;
   solutionStale: boolean;
-  tokens: PreviewWidgetTokens;
+  solvedGraph: SolvedGraph | undefined;
+  onPreviewUrlChange: (previewUrl: string) => void;
 }) {
+  const iframePreview = buildPreviewUrl(previewUrl, solvedGraph);
+
   return (
     <aside className="min-w-0 lg:sticky lg:top-8 lg:h-[calc(100dvh-4rem)] lg:basis-[calc(var(--solver-preview-width)-0.75rem)] lg:overflow-hidden">
       <section className="flex h-full min-h-[32rem] flex-col overflow-hidden rounded-3xl border border-gray-950/10 bg-white shadow-sm">
-        <div className="flex items-start justify-between gap-4 border-b border-gray-950/10 p-4">
-          <div>
-            <Subheading className={DARK_TEXT}>Preview Pane</Subheading>
-            <Text className={`mt-1 ${MUTED_TEXT}`}>
-              Renders solved preview tokens against production-like UI.
-            </Text>
+        <div className="grid gap-4 border-b border-gray-950/10 p-4">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <Subheading className={DARK_TEXT}>Preview Pane</Subheading>
+              <Text className={`mt-1 ${MUTED_TEXT}`}>
+                Loads an external URL with solved token values appended as query params.
+              </Text>
+            </div>
+            <Badge color={hasSolvedBaseline && !solutionStale ? "green" : "gray"}>
+              {hasSolvedBaseline ? (solutionStale ? "Stale" : "Live") : "No tokens"}
+            </Badge>
           </div>
-          <Badge color={hasSolvedBaseline && !solutionStale ? "green" : "gray"}>
-            {hasSolvedBaseline ? (solutionStale ? "Stale" : "Live") : "Fallback"}
-          </Badge>
+          <div>
+            <label className="text-sm font-medium text-gray-700" htmlFor="preview-url">
+              Preview URL
+            </label>
+            <Input
+              id="preview-url"
+              className="mt-2"
+              onChange={(event) => onPreviewUrlChange(event.target.value)}
+              placeholder="localhost:3000"
+              type="text"
+              value={previewUrl}
+            />
+          </div>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-auto bg-gray-50 p-4">
-          <PreviewWidget tokens={tokens} />
+        <div className="min-h-0 flex-1 bg-gray-50 p-4">
+          {iframePreview.state === "valid" ? (
+            <iframe
+              className="h-full min-h-[28rem] w-full rounded-2xl border border-gray-950/10 bg-white"
+              src={iframePreview.url}
+              title="External token preview"
+            />
+          ) : (
+            <div className="flex h-full min-h-[28rem] items-center justify-center rounded-2xl border border-dashed border-gray-300 bg-white p-6 text-center">
+              <Text className={MUTED_TEXT}>
+                {iframePreview.state === "empty"
+                  ? "Enter a preview URL to load an external page."
+                  : "Enter a valid http or https preview URL."}
+              </Text>
+            </div>
+          )}
         </div>
       </section>
     </aside>
@@ -678,6 +782,12 @@ function TokenSidebar({
   onDeleteEdge: (edgeId: string) => void;
   onUpdateEdge: (edge: Edge) => void;
 }) {
+  const [draftDisplayName, setDraftDisplayName] = useState(node?.displayName ?? "");
+
+  useEffect(() => {
+    setDraftDisplayName(node?.displayName ?? "");
+  }, [node?.id, node?.displayName]);
+
   if (!node) {
     return (
       <section className="rounded-2xl border border-gray-950/10 bg-white p-6 shadow-sm">
@@ -690,6 +800,7 @@ function TokenSidebar({
   const solvedColor = solvedGraph?.nodes.find(
     (solutionNode) => solutionNode.id === node.id,
   )?.solvedColor;
+  const nameError = getTokenNameError(graph, node.id, draftDisplayName);
 
   return (
     <section className="rounded-2xl border border-gray-950/10 bg-white p-5 shadow-sm">
@@ -701,10 +812,19 @@ function TokenSidebar({
 
         <Field label="Name">
           <Input
+            aria-invalid={nameError ? true : undefined}
             type="text"
-            value={node.displayName}
-            onChange={(event) => onUpdateNode({ ...node, displayName: event.target.value })}
+            value={draftDisplayName}
+            onChange={(event) => {
+              const nextDisplayName = event.target.value;
+              setDraftDisplayName(nextDisplayName);
+
+              if (!getTokenNameError(graph, node.id, nextDisplayName)) {
+                onUpdateNode({ ...node, displayName: nextDisplayName });
+              }
+            }}
           />
+          {nameError ? <Text className="mt-2 text-sm text-red-600">{nameError}</Text> : null}
         </Field>
 
         <div className="rounded-xl border border-gray-950/10 p-4">
