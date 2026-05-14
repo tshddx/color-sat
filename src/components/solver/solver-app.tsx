@@ -39,6 +39,7 @@ import {
 } from "../../lib/solver";
 
 const STORAGE_KEY = "colorsat:solver:v1";
+const DEFAULT_PREVIEW_URL = "http://localhost:44100/people/2";
 const EMPTY_GRAPH: Graph = { nodes: [], edges: [] };
 const DARK_TEXT = "!text-gray-950 dark:!text-gray-950";
 const MUTED_TEXT = "!text-gray-500 dark:!text-gray-500";
@@ -253,7 +254,7 @@ function loadStoredState(): {
         graph: EMPTY_GRAPH,
         selectedNodeId: undefined,
         hasSolvedBaseline: false,
-        previewUrl: "",
+        previewUrl: DEFAULT_PREVIEW_URL,
       },
     };
   }
@@ -262,7 +263,7 @@ function loadStoredState(): {
     graph: EMPTY_GRAPH,
     selectedNodeId: undefined,
     hasSolvedBaseline: false,
-    previewUrl: "",
+    previewUrl: DEFAULT_PREVIEW_URL,
   };
   const raw = window.localStorage.getItem(STORAGE_KEY);
 
@@ -459,7 +460,7 @@ export function SolverApp() {
     setSelectedNodeId(undefined);
     setSolvedGraph(undefined);
     setHasSolvedBaseline(false);
-    setPreviewUrl("");
+    setPreviewUrl(DEFAULT_PREVIEW_URL);
     setSolutionStale(false);
     setCurrentError(undefined);
     setStorageWarning(undefined);

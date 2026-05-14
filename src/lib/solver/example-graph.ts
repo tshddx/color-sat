@@ -18,40 +18,166 @@ function contrastEdge(id: string, sourceNodeId: string, targetNodeId: string, va
   };
 }
 
+function textEdge(
+  id: string,
+  sourceNodeId: string,
+  targetNodeId: string,
+  contrast: number,
+  chroma: number,
+): Edge {
+  return {
+    id,
+    sourceNodeId,
+    targetNodeId,
+    constraints: [
+      { type: "contrast", background: "source", value: contrast, tolerance: 2 },
+      { type: "fixed-chroma", value: chroma, tolerance: 0.005 },
+    ],
+  };
+}
+
 export function exampleGraph(): Graph {
-  const background = node("node-preview-background", "preview-background", { l: 1, c: 0, h: 0 });
-  const primaryText = node(
-    "node-preview-primary-text",
-    "preview-primary-text",
+  const bodyBg1 = node("node-bodyBg1", "bodyBg1", { l: 0.985, c: 0.006, h: 190 });
+  const bodyBg2 = node("node-bodyBg2", "bodyBg2", undefined, bodyBg1.id);
+  const bodyText1 = node("node-bodyText1", "bodyText1", undefined, bodyBg1.id);
+  const bodyText2 = node("node-bodyText2", "bodyText2", undefined, bodyBg1.id);
+  const bodyText3 = node("node-bodyText3", "bodyText3", undefined, bodyBg1.id);
+  const border1 = node("node-border1", "border1", undefined, bodyBg1.id);
+  const border2 = node("node-border2", "border2", undefined, bodyBg1.id);
+  const border3 = node("node-border3", "border3", undefined, bodyBg1.id);
+
+  const solidOrangeBg1 = node("node-solidOrangeBg1", "solidOrangeBg1", {
+    l: 0.573242,
+    c: 0.153125,
+    h: 50,
+  });
+  const solidOrangeBg2 = node(
+    "node-solidOrangeBg2",
+    "solidOrangeBg2",
     undefined,
-    background.id,
+    solidOrangeBg1.id,
   );
-  const secondaryText = node(
-    "node-preview-secondary-text",
-    "preview-secondary-text",
+  const solidOrangeText = node(
+    "node-solidOrangeText",
+    "solidOrangeText",
     undefined,
-    background.id,
-  );
-  const divider = node("node-preview-divider", "preview-divider", undefined, background.id);
-  const secondaryBackground = node(
-    "node-preview-secondary-background",
-    "preview-secondary-background",
-    undefined,
-    background.id,
+    solidOrangeBg1.id,
   );
 
+  const solidTealBg1 = node("node-solidTealBg1", "solidTealBg1", {
+    l: 0.58,
+    c: 0.13495,
+    h: 190,
+  });
+  const solidTealBg2 = node("node-solidTealBg2", "solidTealBg2", undefined, solidTealBg1.id);
+  const solidTealText = node("node-solidTealText", "solidTealText", undefined, solidTealBg1.id);
+
+  const lightTealBg1 = node("node-lightTealBg1", "lightTealBg1", {
+    l: 0.935,
+    c: 0.03,
+    h: 190,
+  });
+  const lightTealBg2 = node("node-lightTealBg2", "lightTealBg2", undefined, lightTealBg1.id);
+  const lightTealText = node("node-lightTealText", "lightTealText", undefined, lightTealBg1.id);
+
+  const lightOrangeBg1 = node("node-lightOrangeBg1", "lightOrangeBg1", {
+    l: 0.94,
+    c: 0.03,
+    h: 50,
+  });
+  const lightOrangeBg2 = node(
+    "node-lightOrangeBg2",
+    "lightOrangeBg2",
+    undefined,
+    lightOrangeBg1.id,
+  );
+  const lightOrangeText = node(
+    "node-lightOrangeText",
+    "lightOrangeText",
+    undefined,
+    lightOrangeBg1.id,
+  );
+  const lightOrangeBorder1 = node(
+    "node-lightOrangeBorder1",
+    "lightOrangeBorder1",
+    undefined,
+    lightOrangeBg1.id,
+  );
+  const lightOrangeBorder2 = node(
+    "node-lightOrangeBorder2",
+    "lightOrangeBorder2",
+    undefined,
+    lightOrangeBg1.id,
+  );
+
+  const lightRedBg1 = node("node-lightRedBg1", "lightRedBg1", { l: 0.945, c: 0.03576, h: 25 });
+  const lightRedBg2 = node("node-lightRedBg2", "lightRedBg2", undefined, lightRedBg1.id);
+  const lightRedText = node("node-lightRedText", "lightRedText", undefined, lightRedBg1.id);
+
   return {
-    nodes: [background, primaryText, secondaryText, divider, secondaryBackground],
+    nodes: [
+      bodyBg1,
+      bodyBg2,
+      bodyText1,
+      bodyText2,
+      bodyText3,
+      border1,
+      border2,
+      border3,
+      solidOrangeBg1,
+      solidOrangeBg2,
+      solidOrangeText,
+      solidTealBg1,
+      solidTealBg2,
+      solidTealText,
+      lightTealBg1,
+      lightTealBg2,
+      lightTealText,
+      lightOrangeBg1,
+      lightOrangeBg2,
+      lightOrangeText,
+      lightOrangeBorder1,
+      lightOrangeBorder2,
+      lightRedBg1,
+      lightRedBg2,
+      lightRedText,
+    ],
     edges: [
-      contrastEdge("edge-preview-background-primary-text", background.id, primaryText.id, 90),
-      contrastEdge("edge-preview-background-secondary-text", background.id, secondaryText.id, 60),
-      contrastEdge("edge-preview-background-divider", background.id, divider.id, 25),
-      contrastEdge(
-        "edge-preview-background-secondary-background",
-        background.id,
-        secondaryBackground.id,
-        10,
+      contrastEdge("edge-bodyBg1-bodyBg2", bodyBg1.id, bodyBg2.id, 10),
+      textEdge("edge-bodyBg1-bodyText1", bodyBg1.id, bodyText1.id, 90, 0.0489),
+      textEdge("edge-bodyBg1-bodyText2", bodyBg1.id, bodyText2.id, 70, 0.01),
+      textEdge("edge-bodyBg1-bodyText3", bodyBg1.id, bodyText3.id, 50, 0.01),
+      contrastEdge("edge-bodyBg1-border1", bodyBg1.id, border1.id, 25),
+      contrastEdge("edge-bodyBg1-border2", bodyBg1.id, border2.id, 55),
+      contrastEdge("edge-bodyBg1-border3", bodyBg1.id, border3.id, 85),
+      contrastEdge("edge-solidOrangeBg1-solidOrangeBg2", solidOrangeBg1.id, solidOrangeBg2.id, 10),
+      textEdge("edge-solidOrangeBg1-solidOrangeText", solidOrangeBg1.id, solidOrangeText.id, 90, 0),
+      contrastEdge("edge-solidTealBg1-solidTealBg2", solidTealBg1.id, solidTealBg2.id, 10),
+      textEdge("edge-solidTealBg1-solidTealText", solidTealBg1.id, solidTealText.id, 90, 0),
+      contrastEdge("edge-lightTealBg1-lightTealBg2", lightTealBg1.id, lightTealBg2.id, 10),
+      textEdge("edge-lightTealBg1-lightTealText", lightTealBg1.id, lightTealText.id, 90, 0.14),
+      contrastEdge("edge-lightOrangeBg1-lightOrangeBg2", lightOrangeBg1.id, lightOrangeBg2.id, 10),
+      textEdge(
+        "edge-lightOrangeBg1-lightOrangeText",
+        lightOrangeBg1.id,
+        lightOrangeText.id,
+        90,
+        0.21,
       ),
+      contrastEdge(
+        "edge-lightOrangeBg1-lightOrangeBorder1",
+        lightOrangeBg1.id,
+        lightOrangeBorder1.id,
+        60,
+      ),
+      contrastEdge(
+        "edge-lightOrangeBg1-lightOrangeBorder2",
+        lightOrangeBg1.id,
+        lightOrangeBorder2.id,
+        20,
+      ),
+      contrastEdge("edge-lightRedBg1-lightRedBg2", lightRedBg1.id, lightRedBg2.id, 10),
+      textEdge("edge-lightRedBg1-lightRedText", lightRedBg1.id, lightRedText.id, 90, 0.275),
     ],
   };
 }
